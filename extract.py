@@ -309,6 +309,8 @@ def main():
         
 
     #Download person detection model if it doesn't already exist in the models subfolder
+    if not os.path.exists("models"):
+        os.mkdir("models")
     if not os.path.exists("models/retinanet_resnet50_fpn_coco-eeacb38b.pth"):
         r = requests.get('https://github.com/OlafenwaMoses/ImageAI/releases/download/3.0.0-pretrained/retinanet_resnet50_fpn_coco-eeacb38b.pth', stream=True)
         with open(models/retinanet_resnet50_fpn_coco-eeacb38b.pth, 'wb') as fd:
@@ -340,22 +342,23 @@ def main():
             ext = file_name_and_extension[1]
             if ext.lower() in SUPPORTED_EXT:
                 full_file_path = os.path.join(root, file)
-
-                relative_path = os.path.normpath(file).replace(file,"").replace(os.path.normpath(args.img_dir),"")
-
+                folder_names = root.replace(args.img_dir,"").replace("\\","_")
+                relative_path = os.path.join(folder_names, file)
+                
                 if args.append_folder_name:
-                    folder_names = relative_path.replace("\\","_")
                     
-                    #append_text = os.path.basename(root)
-
                     #PIL allowed us to open files with special characters, but we need to remove them out before writing
                     if folder_names.isalnum() is False:
                         clean_string = "".join(ch for ch in folder_names if (ch.isalnum() or ch == " " or ch == "_"))
 
                     if folder_names != "":
                         folder_names = folder_names + "__"
+
+                if folder_names[0] == "_":
+                    folder_names = folder_names[1:]
+
+                print(f"  Processing {relative_path} . . . ")
                         
-                print(f"  Processing {os.path.join(relative_path,file)} . . . ")
                 image = open_image(full_file_path)
 
                 if args.extract_people:
