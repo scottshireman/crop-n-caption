@@ -28,27 +28,38 @@ Which as of the time of writing this will return the following:
 ```
 usage: extract.py [-h] [--img_dir IMG_DIR] [--out_dir OUT_DIR] [--person_probability PERSON_PROBABILITY]
                   [--face_probability FACE_PROBABILITY] [--append_folder_name] [--extract_people] [--extract_faces]
-                  [--skip_multiples] [--no_compress] [--max_mp MAX_MP] [--quality QUALITY] [--overwrite] [--noresize]
-                  [--training_size TRAINING_SIZE]
+                  [--skip_multiples] [--no_compress] [--max_mp MAX_MP] [--quality QUALITY] [--overwrite]
+                  [--no_transpose] [--training_size TRAINING_SIZE]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --img_dir IMG_DIR     Path to images
-  --out_dir OUT_DIR     Path to folder for extracted images
+  --img_dir IMG_DIR     Path to input images. (default: 'input')
+  --out_dir OUT_DIR     Path to output folder for extracted images. (default: 'output')
   --person_probability PERSON_PROBABILITY
-                        Minimum probability
+                        Minimum probability threshold for detecting peoeple. Lower means more false positives, higher
+                        means more false negatives. (default: 50).
   --face_probability FACE_PROBABILITY
-                        Minimum probability
-  --append_folder_name  Appends the folder names to the file name
-  --extract_people      Extract images of people
-  --extract_faces       Extract closeup face images
-  --skip_multiples      Don't extract if multiple people or faces exist
-  --no_compress         don't shrink large images or convert to webp. saves in original format.
-  --max_mp MAX_MP       maximum megapixels (default: 1.5)
-  --quality QUALITY     save quality (default: 95, range: 0-100, suggested: 90+)
-  --overwrite           overwrite files in output directory
-  --noresize            do not resize, just fix orientation
+                        Minimum probability threshold for detecting faces. Lower means more false positives, higher
+                        means more false negatives. (default: 50).
+  --append_folder_name  Prepends to output filenames the names of all subfolders the input file is nested in,
+                        delimitted by '_' Helpful for some large datasets with lots of meaningful subfolders that can
+                        be used later for caption tags.
+  --extract_people      Crop images of people from img_dir file and save as new images in in out_dir
+  --extract_faces       Crop images of faces from img_dir file and save as new images in out_dir
+  --skip_multiples      Some images have lots of people/faces and by default all will be extracted. For very large
+                        datasets that might mean a lot of false negatives. Set this option to ignore any input image
+                        that has multiple people or faces (evaluated seperately).
+  --no_compress         By default cropped output images will be written as compressed webp files. Use this flag to
+                        instead save them in the same format as the original input image.
+  --max_mp MAX_MP       Maximum megapixels to save cropped output images. Larger images will be shrunk to this value.
+                        Images with not be resized at all if --no_compress flag is set. (default: 1.5)
+  --quality QUALITY     Webp quality level to save cropped output images. Will not apply if --no_compress flag is set.
+                        (default: 95)
+  --overwrite           Overwrite files in output directory if they already exist
+  --no_transpose        By default images will be transposed to proper orientation if exif data on the roper
+                        orientation exists even if --no_compress is specified. Set this flag to disable.
   --training_size TRAINING_SIZE
-                        Size at which you intend to train. Puts smaller files to 'small' subfolder. 0 ignores.
+                        The resolution at which you intend to train. Cropped images that are smaller than that will be
+                        written to 'small' subfolder created in the output folder. Specify 0 to ignore. (default: 512)
 ```
 
