@@ -19,6 +19,7 @@ import argparse
 import time
 import cv2
 import numpy
+import requests
 from PIL import Image
 from PIL import ImageOps
 
@@ -36,86 +37,85 @@ def get_args(**parser_kwargs):
         "--img_dir",
         type=str,
         default="input",
-        help="Path to images"
+        help="Path to input images. (default: 'input')"
         )
     parser.add_argument(
         "--out_dir",
         type=str,
         default="output",
-        help="Path to folder for extracted images"
+        help="Path to output folder for extracted images. (default: 'output')"
         )
     parser.add_argument(
         "--person_probability",
         type=int,
-        default=10,
-        help="Minimum probability"
+        default=50,
+        help="Minimum probability threshold for detecting peoeple. Lower means more false positives, higher means more false negatives. (default: 50)."
         )
     parser.add_argument(
         "--face_probability",
         type=int,
-        default=10,
-        help="Minimum probability"
+        default=50,
+        help="Minimum probability threshold for detecting faces. Lower means more false positives, higher means more false negatives. (default: 50)."
         )
     parser.add_argument(
         "--append_folder_name",
         action="store_true",
         default=False,
-        help="Appends the folder names to the file name"
+        help="Prepends to output filenames the names of all subfolders the input file is nested in, delimitted by '_' Helpful for some large datasets with lots of meaningful subfolders that can be used later for caption tags."
         )
     parser.add_argument(
         "--extract_people",
         action="store_true",
         default=False,
-        help="Extract images of people"
+        help="Crop images of people from img_dir file and save as new images in in out_dir"
         )
     parser.add_argument(
         "--extract_faces",
         action="store_true",
         default=False,
-        help="Extract closeup face images"
+        help="Crop images of faces from img_dir file and save as new images in out_dir"
         )
     parser.add_argument(
         "--skip_multiples",
         action="store_true",
         default=False,
-        help="Don't extract if multiple people or faces exist"
+        help="Some images have lots of people/faces and by default all will be extracted. For very large datasets that might mean a lot of false negatives. Set this option to ignore any input image that has multiple people or faces (evaluated seperately)."
         )
     parser.add_argument(
         "--no_compress",
         action="store_true",
         default=False,
-        help="don't shrink large images or convert to webp. saves in original format.",
+        help="By default cropped output images will be written as compressed webp files. Use this flag to instead save them in the same format as the original input image.",
     )
-    
     parser.add_argument(
         "--max_mp",
         type=float,
         default=1.5,
-        help="maximum megapixels (default: 1.5)",
+        help="Maximum megapixels to save cropped output images. Larger images will be shrunk to this value. Images with not be resized at all if --no_compress flag is set. (default: 1.5)",
     )
     parser.add_argument(
         "--quality",
         type=int,
         default=95,
-        help="save quality (default: 95, range: 0-100, suggested: 90+)",
+        help="Webp quality level to save cropped output images. Will not apply if --no_compress flag is set. (default: 95)",
     )
     parser.add_argument(
         "--overwrite",
         action="store_true",
         default=False,
-        help="overwrite files in output directory",
+        help="Overwrite files in output directory if they already exist",
     )
     parser.add_argument(
-        "--noresize",
+        "--no_transpose",
         action="store_true",
         default=False,
-        help="do not resize, just fix orientation",
+        help="By default images will be transposed to proper orientation if exif data on the roper orientation exists even if --no_compress is specified. Set this flag to disable.",
     )
     parser.add_argument(
         "--training_size",
         type=int,
-        default=0,
-        help="Size at which you intend to train. Puts smaller files to 'small' subfolder. 0 ignores.",
+        default=512,
+        help="The resolution at which you intend to train. Cropped images that are smaller than that will be written to 'small' subfolder created in the output folder. Specify 0 to ignore. (default: 512)",
     )
     
     args = parser.parse_args()
@@ -143,7 +143,8 @@ def save_image(full_file_path, open_cv_image, args):
     full_file_path = full_file_path.replace(os.path.splitext(full_file_path)[1], ".webp")
 
     if args.overwrite or not os.path.exists(full_file_path):  
-        pil_image = transpose(pil_image)
+        if args.no_transpose is False:
+            pil_image = transpose(pil_image)
             
         if args.no_compress:
             pil_image.save(full_file_path)
@@ -297,6 +298,19 @@ def crop_within_bounds(image, top, bottom, left, right):
 
     return image[top:bottom+1, left:right+1]
 
+def check_requirements(args):
+
+    if not os.path.exists(args.img_dir):
+        print(f" {args.img_dir} directory specified via --img_dir doesn't exist.")
+        exit()
+
+    if not os.path.exists(args.out_dir):
+        print(f" {args.out_dir} directory specified with --out_dir doesn't exist.")
+        exit()
+
+    if args.extract_people == False and args.extract_faces == False:
+        print(f" Need to specify at least one of --extract_people or --extract_faces (both are fine)")
+    
 
 def main():
 
@@ -306,6 +320,7 @@ def main():
     faces_extracted = 0
     
     args = get_args()
+    check_requirements(args)
         
 
     #Download person detection model if it doesn't already exist in the models subfolder
@@ -313,7 +328,7 @@ def main():
         os.mkdir("models")
     if not os.path.exists("models/retinanet_resnet50_fpn_coco-eeacb38b.pth"):
         r = requests.get('https://github.com/OlafenwaMoses/ImageAI/releases/download/3.0.0-pretrained/retinanet_resnet50_fpn_coco-eeacb38b.pth', stream=True)
-        with open(models/retinanet_resnet50_fpn_coco-eeacb38b.pth, 'wb') as fd:
+        with open("models/retinanet_resnet50_fpn_coco-eeacb38b.pth", 'wb') as fd:
             for chunk in r.iter_content(chunk_size=128):
                 fd.write(chunk)
 
@@ -350,12 +365,20 @@ def main():
                     #PIL allowed us to open files with special characters, but we need to remove them out before writing
                     if folder_names.isalnum() is False:
                         clean_string = "".join(ch for ch in folder_names if (ch.isalnum() or ch == " " or ch == "_"))
+                        folder_names = clean_string
+
+                    print(folder_names)
+                    if folder_names != "":
+                        if folder_names[0] == "_":
+                            folder_names = folder_names[1:]
 
                     if folder_names != "":
                         folder_names = folder_names + "__"
+                        
+                    print(folder_names)
+                else:
+                    folder_names = ""
 
-                if folder_names[0] == "_":
-                    folder_names = folder_names[1:]
 
                 print(f"  Processing {relative_path} . . . ")
                         
