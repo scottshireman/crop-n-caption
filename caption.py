@@ -151,11 +151,9 @@ def main():
     dtype = torch.float32 if args.force_cpu else torch.float16
 
     #Open CLIP model
-    print(f"Loading CLIP model {args.clip_model} . . . ")
     ci = Interrogator(Config(clip_model_name=args.clip_model, caption_model_name=None))
     mediums_table = LabelTable(load_list(args.mediums), 'terms', ci)
     emotions_table = LabelTable(load_list(args.emotions), 'terms', ci)
-    print(f"Loaded BLIP2 model in {time.time() - start_time} seconds.")
     print(f"GPU memory used: {get_gpu_memory_map()} MB")
 
     #Open BLIP2 model
