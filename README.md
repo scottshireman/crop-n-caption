@@ -87,13 +87,13 @@ tags
   - tag: happy
 ```
 
-The advantage of a yaml file is that some trainers like EveryDream2 allow you to use global.yaml or local.yaml files at the subfolder to add further tags easily to groups of photos which gives a great deal of control to quickly add tags to refine your training.
+The advantage of a yaml file is that some trainers like [EveryDream2](https://github.com/victorchall/EveryDream2trainer) allow you to use global.yaml or local.yaml files at the subfolder to add further tags easily to groups of photos which gives a great deal of control to quickly add tags to refine your training.
 
 The script can also replace generic terms like 'a woman' or 'a lovely woman' with a specific term like 'jane doe' for fine-tuning Stable Diffusion models.
 
 I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. In my tests  improve slightly loss/val but also 
 
-It is not intended as a general purpose trainer. For that I recomend captionr or the caption.py script that is included in EveryDream2.
+It is not intended as a general purpose trainer. For that I recomend captionr or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
 Assuming venv is active, you can see the parameters needed by typing
 ```
