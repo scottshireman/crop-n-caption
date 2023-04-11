@@ -21,7 +21,7 @@ activate_venv.bat
 # Cropping images to people and/or faces
 Assuming venv is active, you can see the parameters needed by typing
 ```
-python --help extract.py --help
+python --help extract.py
 ```
 
 Which as of the time of writing this will return the following:
