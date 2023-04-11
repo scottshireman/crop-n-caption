@@ -18,7 +18,7 @@ activate_venv.bat
 ```
 
 
-# Crop images of people and/or faces from photos and save as new images
+# Crop images of people and/or faces from photos
 extract.py uses the imageai library to detect people and the mediapipe library to detect faces in photos. It then crops people/faces and saves them as new images. It will fix orientation issues if exif data is available and will ensure output image aspect rations are between 1:4 to 4:1.
 
 Assuming venv is active, you can see the parameters needed by typing
