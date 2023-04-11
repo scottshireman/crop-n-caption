@@ -132,3 +132,5 @@ The simplest usage would be to run the following command:
 python caption.py --replace "jane doe"
 ```
 This will scan all files in the ```output``` folder and all subfolders (i know its weird to default to output here, but its meant to be used after the extract script and that's where that puts its output by default). For each image a txt file with the same name will be created with the BLIP2 caption and CLIP tags as described above.
+
+NOTE: the find and replace functionality will likely require some tuning on your part as the BLIP captions sometimes feature new adjectives (expecially nationalities and such). If that happens you just need to add new strings to appropriate text file (ex: 'data\female.txt') for the terms its missing. For example if you got a caption with 'a young Polish woman in a park' it won't currently replace 'a young Polish woman' because its not in the female.txt. Just add it as a new line and rerun the script and it will replace it. Its impossible to account for everything here so it has to be left for the end user to fine-tune the txt files based on their dataset.
