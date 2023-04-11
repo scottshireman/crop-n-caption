@@ -23,7 +23,7 @@ extract.py uses the imageai library to detect people and the mediapipe library t
 
 Assuming venv is active, you can see the parameters needed by typing
 ```
-python --help extract.py
+python extract.py --help
 ```
 
 Which as of the time of writing this will return the following:
@@ -87,8 +87,14 @@ tags
   - tag: happy
 ```
 
-The advantage of a yaml file is that trainers like EveryDream2 allow you to use global.yaml or local.yaml files at the subfolder to add further tags easily to groups of photos.
+The advantage of a yaml file is that some trainers like EveryDream2 allow you to use global.yaml or local.yaml files at the subfolder to add further tags easily to groups of photos which gives a great deal of control to quickly add tags to refine your training.
 
-The script also can replace generic terms like 'a woman' or 'a lovely woman' with a specific term like 'jane doe' for fine-tuning Stable Diffusion models.
+The script can also replace generic terms like 'a woman' or 'a lovely woman' with a specific term like 'jane doe' for fine-tuning Stable Diffusion models.
 
-I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. It is not intended as a general purpose trainer. For that I would recomend captionr or the caption.py script that is included in EveryDream2.
+I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. It is not intended as a general purpose trainer. For that I recomend captionr or the caption.py script that is included in EveryDream2.
+
+Assuming venv is active, you can see the parameters needed by typing
+```
+python caption.py --help
+```
+Which as of the time of writing this will return the following:
