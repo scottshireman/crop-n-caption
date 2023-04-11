@@ -125,7 +125,7 @@ def get_gpu_memory_map():
 def create_blip2_processor(model_name, device, dtype=torch.float16):
     processor = Blip2Processor.from_pretrained(model_name)
     model = Blip2ForConditionalGeneration.from_pretrained(
-        args.blip_model, torch_dtype=dtype
+        model_name, torch_dtype=dtype
     )
     model.to(device)
     model.eval()
