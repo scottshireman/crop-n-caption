@@ -4,7 +4,8 @@ echo should be in venv here
 cd .
 python -m pip install --upgrade pip
 pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 --extra-index-url "https://download.pytorch.org/whl/cu116"
-pip install transformers==4.27.1
+REM pip install transformers==4.27.1
+pip install git+https://github.com/huggingface/transformers.git
 pip install diffusers[torch]==0.13.0
 pip install pynvml==11.4.1
 pip install bitsandbytes==0.35.0
@@ -39,7 +40,8 @@ pip install torchvision
 pip install open_clip_torch
 pip install salesforce-lavis
 
-pip install -r requirements.txt
+
+pip install git+https://github.com/pharmapsychotic/clip-interrogator
 
 REM python utils/patch_bnb.py
 REM python utils/get_yamls.py
