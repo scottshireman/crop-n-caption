@@ -3,7 +3,7 @@ Two scripts useful for dealing with large image datasets of people. The first de
 
 # Install
 
-Run the following commands in the folder where you want to install. It will install into a subfolder called crop-n-caption.
+Open a windows command prompt, navigate to the folder in which you want to install, and then run the following commands. It will download into a subfolder called crop-n-caption.
 
 ```
 git clone https://github.com/scottshireman/crop-n-caption
