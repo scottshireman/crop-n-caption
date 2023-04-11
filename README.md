@@ -100,3 +100,29 @@ Assuming venv is active, you can see the parameters needed by typing
 python caption.py --help
 ```
 Which as of the time of writing this will return the following:
+```
+usage: caption.py [-h] [--img_dir IMG_DIR] [--blip_model BLIP_MODEL] [--clip_model CLIP_MODEL] [--force_cpu]
+                  [--max_new_tokens MAX_NEW_TOKENS] [--find [FIND]] [--replace [REPLACE]] [--yaml]
+                  [--mediums [MEDIUMS]] [--emotions [EMOTIONS]]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --img_dir IMG_DIR     Path to input images. (default: 'output')
+  --blip_model BLIP_MODEL
+                        BLIP2 moodel from huggingface. (default: salesforce/blip2-opt-6.7b)
+  --clip_model CLIP_MODEL
+                        CLIP model. (default: ViT-L-14/openai)
+  --force_cpu           Force using CPU for BLIP even if GPU is available. You need at least 24GB VRAM to use GPU and
+                        64GB to use CPU but it will likely be very slow. I have not tested this.
+  --max_new_tokens MAX_NEW_TOKENS
+                        In theory this should change length of generated captions, but it doesn't seem to work
+                        currently. (default: 48)
+  --find [FIND]         A txt file containing one entry per line of strings to replace in the BLIP caption. Only works
+                        if --replace is also specific, ignored otherwise. (default: data/female.txt)
+  --replace [REPLACE]   A string that will be used to replace the entries specific in the --find file, ex. 'john doe'
+                        (default: None)
+  --yaml                Write yaml files instead of txt. Recomended if your trainer supports it for flexibility later.
+  --mediums [MEDIUMS]   A text file with list of mediums/photo styles for tags. (default: 'data/mediums.txt')
+  --emotions [EMOTIONS]
+                        A text file with list of emotions/facial expressions for tags. (default: 'data/emotions.txt')
+```
