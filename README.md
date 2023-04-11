@@ -69,4 +69,4 @@ The simplest usage would be to run the following command:
 ```
 python extract.py --extract_people --extract_faces
 ```
-This will scan all files in the ```input``` folder to find anything its at least 50% confident is a person or face and then crop those people and faces and save them as new images in the ```output``` folder as webp files. Any files smaller than 262,144 pixels needed to train at 512 resoltuon will instead be written to the ```small``` subfolder inside the ```output``` folder.
+This will scan all files in the ```input``` folder to find anything the models is at least 50% confident is a person or face, crop those people and faces, and save them as new images in the ```output``` folder as webp files. Any files smaller than 262,144 pixels needed to train at 512 resoltuon will instead be written to the ```small``` subfolder inside the ```output``` folder.
