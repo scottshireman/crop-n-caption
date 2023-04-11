@@ -21,6 +21,7 @@ activate_venv.bat
 # Crop images of people and/or faces from photos
 extract.py uses the imageai library to detect people and the mediapipe library to detect faces in photos. It then crops people/faces and saves them as new images. It will fix orientation issues if exif data is available and will ensure output image aspect ratios are between 1:4 to 4:1. The resuling images work very well in Stable Diffusion trainers such as [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
+#  Usage
 Assuming venv is active, you can see the parameters needed by typing
 ```
 python extract.py --help
@@ -95,7 +96,7 @@ The script can also replace generic terms like 'a woman' or 'a lovely woman' wit
 
 I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. In my tests  improve slightly loss/val but also 
 
-#Usage
+#  Usage
 Assuming venv is active, you can see the parameters needed by typing
 ```
 python caption.py --help
