@@ -25,3 +25,30 @@ python --help extract.py
 ```
 
 Which as of the time of writing this will return the following:
+```
+usage: extract.py [-h] [--img_dir IMG_DIR] [--out_dir OUT_DIR] [--person_probability PERSON_PROBABILITY]
+                  [--face_probability FACE_PROBABILITY] [--append_folder_name] [--extract_people] [--extract_faces]
+                  [--skip_multiples] [--no_compress] [--max_mp MAX_MP] [--quality QUALITY] [--overwrite] [--noresize]
+                  [--training_size TRAINING_SIZE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --img_dir IMG_DIR     Path to images
+  --out_dir OUT_DIR     Path to folder for extracted images
+  --person_probability PERSON_PROBABILITY
+                        Minimum probability
+  --face_probability FACE_PROBABILITY
+                        Minimum probability
+  --append_folder_name  Appends the folder names to the file name
+  --extract_people      Extract images of people
+  --extract_faces       Extract closeup face images
+  --skip_multiples      Don't extract if multiple people or faces exist
+  --no_compress         don't shrink large images or convert to webp. saves in original format.
+  --max_mp MAX_MP       maximum megapixels (default: 1.5)
+  --quality QUALITY     save quality (default: 95, range: 0-100, suggested: 90+)
+  --overwrite           overwrite files in output directory
+  --noresize            do not resize, just fix orientation
+  --training_size TRAINING_SIZE
+                        Size at which you intend to train. Puts smaller files to 'small' subfolder. 0 ignores.
+```
+
