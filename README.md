@@ -93,7 +93,7 @@ The script can also replace generic terms like 'a woman' or 'a lovely woman' wit
 
 I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. In my tests  improve slightly loss/val but also 
 
-It is not intended as a general purpose trainer. For that I recomend captionr or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
+This is not intended as a general purpose captioner. For that I recommend [captionr](https://github.com/theovercomer8/captionr) or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
 Assuming venv is active, you can see the parameters needed by typing
 ```
