@@ -19,25 +19,25 @@ activate_venv.bat
 
 
 # Crop images of people and/or faces from photos
-extract.py uses the imageai library to detect people and the mediapipe library to detect faces in photos. It then crops people/faces and saves them as new images. It will fix orientation issues if exif data is available and will ensure output image aspect ratios are between 1:4 to 4:1. The resuling images work very well in Stable Diffusion trainers such as [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
+crop.py uses the imageai library to detect people and the mediapipe library to detect faces in photos. It then crops people/faces and saves them as new images. It will fix orientation issues if exif data is available and will ensure output image aspect ratios are between 1:4 to 4:1. The resuling images work very well in Stable Diffusion trainers such as [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
 #  Usage
 Assuming venv is active, you can see the parameters needed by typing
 ```
-python extract.py --help
+python crop.py --help
 ```
 
 Which as of the time of writing this will return the following:
 ```
-usage: extract.py [-h] [--img_dir IMG_DIR] [--out_dir OUT_DIR] [--person_probability PERSON_PROBABILITY]
-                  [--face_probability FACE_PROBABILITY] [--append_folder_name] [--extract_people] [--extract_faces]
-                  [--skip_multiples] [--no_compress] [--max_mp MAX_MP] [--quality QUALITY] [--overwrite]
-                  [--no_transpose] [--training_size TRAINING_SIZE]
+usage: crop.py [-h] [--img_dir IMG_DIR] [--out_dir OUT_DIR] [--person_probability PERSON_PROBABILITY]
+               [--face_probability FACE_PROBABILITY] [--append_folder_name] [--crop_people] [--crop_faces]
+               [--skip_multiples] [--no_compress] [--max_mp MAX_MP] [--quality QUALITY] [--overwrite] [--no_transpose]
+               [--training_size TRAINING_SIZE]
 
 optional arguments:
   -h, --help            show this help message and exit
   --img_dir IMG_DIR     Path to input images. (default: 'input')
-  --out_dir OUT_DIR     Path to output folder for extracted images. (default: 'output')
+  --out_dir OUT_DIR     Path to output folder for cropped images. (default: 'output')
   --person_probability PERSON_PROBABILITY
                         Minimum probability threshold for detecting peoeple. Lower means more false positives, higher
                         means more false negatives. (default: 50).
@@ -47,8 +47,8 @@ optional arguments:
   --append_folder_name  Prepends to output filenames the names of all subfolders the input file is nested in,
                         delimitted by '_' Helpful for some large datasets with lots of meaningful subfolders that can
                         be used later for caption tags.
-  --extract_people      Crop images of people from img_dir file and save as new images in in out_dir
-  --extract_faces       Crop images of faces from img_dir file and save as new images in out_dir
+  --crop_people         Crop images of people from img_dir file and save as new images in in out_dir
+  --crop_faces          Crop images of faces from img_dir file and save as new images in out_dir
   --skip_multiples      Some images have lots of people/faces and by default all will be extracted. For very large
                         datasets that might mean a lot of false negatives. Set this option to ignore any input image
                         that has multiple people or faces (evaluated seperately).
@@ -68,9 +68,10 @@ optional arguments:
 
 The simplest usage would be to run the following command:
 ```
-python extract.py --extract_people --extract_faces
+python crop.py --extract_people --extract_faces
 ```
 This will scan all files in the ```input``` folder and all sufolders to find anything the models is at least 50% confident is a person or face, crop those people and faces, and save them as new images in the ```output``` folder as webp files. Any files smaller than 262,144 pixels needed to train at 512 resoltuon will instead be written to the ```small``` subfolder inside the ```output``` folder.
+
 
 # Caption images of people using BLIP2 and CLIP
 caption.py uses BLIP2 and CLIP to create captions of people. It is not intended as a general purpose captioner, but for the very specific purpose of captioning images of people. For a more general purpose trainer I recommend [captionr](https://github.com/theovercomer8/captionr) or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
