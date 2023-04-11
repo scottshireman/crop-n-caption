@@ -1,5 +1,5 @@
 # crop-n-caption
-Two scripts useful for dealing with large image datasets of people. The first detects people and faces and crops photos. The second captions photos using BLIP2 and CLIP.
+Two scripts useful for dealing with large image datasets of people. The first detects people and faces and crops photos. The second captions photos using BLIP2 and CLIP. BLIP2 requires a lot of VRAM so using the default options you need at least 24GB VRAM. (you can pass specify smaller VRAM BLIP2 models as a command line argument)
 
 # Install
 
