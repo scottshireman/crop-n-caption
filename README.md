@@ -72,7 +72,7 @@ python extract.py --extract_people --extract_faces
 This will scan all files in the ```input``` folder to find anything the models is at least 50% confident is a person or face, crop those people and faces, and save them as new images in the ```output``` folder as webp files. Any files smaller than 262,144 pixels needed to train at 512 resoltuon will instead be written to the ```small``` subfolder inside the ```output``` folder.
 
 # Caption images of people using BLIP2 and CLIP
-caption.py uses BLIP2 and CLIP to create captions of people. It will first use BLIP2 to generate a good base caption such as 'a woman in a coat and scarf posing in the park' and then it will use CLIP generate two tags, one descriptive of the style of the photo such as 'an outdoor photo' and the other descriptive of the person's emotion/facial expression such as 'happy'. It then writes a full caption to a txt or yaml file. 
+caption.py uses BLIP2 and CLIP to create captions of people. It will first use BLIP2 to generate a good base caption such as 'a woman in a coat and scarf posing in the park' and then it will use CLIP generate two tags, one descriptive of the style of the photo such as 'an outdoor photo' and the other descriptive of the person's emotion/facial expression such as 'happy'. It then writes a full caption to a txt or yaml file. The possible photo styles (mediums.txt) and emotion/expressions (emotions.txt) are fully customizable by editing the appriptiate txt file in the ```data``` folder.
 
 The end result in this example could be a text file as follows (default):
 ```
@@ -91,7 +91,9 @@ The advantage of a yaml file is that some trainers like EveryDream2 allow you to
 
 The script can also replace generic terms like 'a woman' or 'a lovely woman' with a specific term like 'jane doe' for fine-tuning Stable Diffusion models.
 
-I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. It is not intended as a general purpose trainer. For that I recomend captionr or the caption.py script that is included in EveryDream2.
+I've found captions formatted this way work well in Stable Diffusion trainers such as EveryDream2. In my tests  improve slightly loss/val but also 
+
+It is not intended as a general purpose trainer. For that I recomend captionr or the caption.py script that is included in EveryDream2.
 
 Assuming venv is active, you can see the parameters needed by typing
 ```
