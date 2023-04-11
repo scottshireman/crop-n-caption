@@ -74,12 +74,12 @@ This will scan all files in the ```input``` folder to find anything the models i
 # Caption images of people using BLIP2 and CLIP
 caption.py uses BLIP2 and CLIP to create captions of people. It will first use BLIP2 to generate a good base caption such as 'a woman in a coat and scarf posing in the park' and then it will use CLIP generate two tags, one descriptive of the style of the photo such as 'an outdoor photo' and the other descriptive of the person's emotion/facial expression such as 'happy'. It then writes a full caption to a txt or yaml file. 
 
-The end result in this example could be a text file as follows:
+The end result in this example could be a text file as follows (default):
 ```
 a woman in a coat and scarf posing in the park, an outdoor photo, happy
 ```
 
-or it could be a yaml file as follows:
+or it could be a yaml file as follows (recomended if your trainer supports it and you use folders to organize images):
 ```
 main prompt: a woman in a coat and scarf posing in the park
 tags
