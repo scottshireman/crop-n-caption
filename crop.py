@@ -367,7 +367,6 @@ def main():
                         clean_string = "".join(ch for ch in folder_names if (ch.isalnum() or ch == " " or ch == "_"))
                         folder_names = clean_string
 
-                    print(folder_names)
                     if folder_names != "":
                         if folder_names[0] == "_":
                             folder_names = folder_names[1:]
@@ -375,7 +374,6 @@ def main():
                     if folder_names != "":
                         folder_names = folder_names + "__"
                         
-                    print(folder_names)
                 else:
                     folder_names = ""
 
