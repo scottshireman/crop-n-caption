@@ -402,9 +402,9 @@ def main():
                     if args.skip_multiples is False or len(face_detections) == 1:
                         for face_id, face in enumerate(face_detections):
                             if face.shape[0] * face.shape[1] < args.training_size:
-                                save_image(os.path.join(small_dir, folder_names + "face_" + file_name + "_" + str(person_id) + ext), face, args)
+                                save_image(os.path.join(small_dir, folder_names + "face_" + file_name + "_" + str(face_id) + ext), face, args)
                             else:
-                                save_image(os.path.join(args.out_dir, folder_names + "face_" + file_name + "_" + str(person_id) + ext), face, args)
+                                save_image(os.path.join(args.out_dir, folder_names + "face_" + file_name + "_" + str(face_id) + ext), face, args)
 
                             faces_extracted = faces_extracted + 1
 
