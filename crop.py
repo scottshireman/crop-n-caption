@@ -357,8 +357,9 @@ def main():
             ext = file_name_and_extension[1]
             if ext.lower() in SUPPORTED_EXT:
                 full_file_path = os.path.join(root, file)
-                folder_names = root.replace(args.img_dir,"").replace("\\","_")
+                folder_names = root.replace(args.img_dir,"")
                 relative_path = os.path.join(folder_names, file)
+                folder_names = folder_names.replace("\\","_")
                 
                 if args.append_folder_name:
                     
