@@ -104,6 +104,18 @@ def get_args(**parser_kwargs):
         default='data/emotions.txt',
         help="A text file with list of emotions/facial expressions for tags. (default: 'data/emotions.txt')"
         )
+    parser.add_argument(
+        "--replace_from_folder",
+        action="store_true",
+        default=False,
+        help="Use the folder name as the replace text and ignore the --replace flag."
+        )
+    parser.add_argument(
+        "--tags_from_filename",
+        action="store_true",
+        default=False,
+        help="Extract '_' delimitted tags from filename. Usual if subfolders were written to filenames with crop.py."
+        )
 
     args = parser.parse_args()
 
@@ -165,11 +177,16 @@ def main():
 
 
 
-    if args.replace is not None:
+    if args.replace is not None or args.replace_from_folder:
         find_list = get_replace_list(args)
+
+    replace_text = args.replace
 
     # os.walk all files in args.img_dir recursively
     for root, dirs, files in os.walk(args.img_dir):
+        if args.replace_from_folder:
+            replace_text = os.path.basename(root)
+        
         for file in files:
             #get file extension
             ext = os.path.splitext(file)[1]
@@ -187,39 +204,57 @@ def main():
                         clean_string = "".join(ch for ch in blip_caption if (ch.isalnum() or ch == " "))
                         blip_caption = clean_string
 
-                if args.replace is not None:
+                if args.replace is not None or args.replace_from_folder:
                     for s in find_list:
                         if s in blip_caption:
-                             blip_caption = blip_caption.replace(s, args.replace)
+                             blip_caption = blip_caption.replace(s, replace_text)
 
                 #query CLIP
                 clip_medium = mediums_table.rank(ci.image_to_features(image), top_count=1)[0]
-                clip_emotion = emotions_table.rank(ci.image_to_features(image), top_count=1)[0]     
+                clip_emotion = emotions_table.rank(ci.image_to_features(image), top_count=1)[0]
 
-                print(f"file: {file}, caption: {blip_caption}, {clip_medium}, {clip_emotion}")
+                if args.tags_from_filename:
+                    filename_tags = file.split("__")[0].split("_")
+                    for x in range (len(filename_tags)):
+                        if filename_tags[x].isalpha() is False:
+                            clean_string = "".join(ch for ch in filename_tags[x] if (ch.isalpha() or ch == " "))
+                            clean_string = clean_string.strip()
+                            if clean_string != "":
+                                filename_tags[x] = clean_string
+
+
+                text_caption = blip_caption
+                if clip_medium != "":
+                    text_caption = text_caption + ", " + clip_medium
+                if clip_emotion != "":
+                    text_caption = text_caption + ", " + clip_emotion
+                if args.tags_from_filename:
+                    for filename_tag in filename_tags:
+                        if filename_tag != "":
+                            text_caption = text_caption + ", " + filename_tag
+
+                print(f"file: {file}, caption: {text_caption}")
                 
                 # get bare name
                 name = os.path.splitext(full_file_path)[0]
                 #name = os.path.join(root, name)
                 if not os.path.exists(name):
                     if args.yaml:
-                        final_caption = "main_prompt: " + blip_caption + "\ntags:"
+                        yaml_caption = "main_prompt: " + blip_caption + "\ntags:"
                         if clip_medium != "":
-                            final_caption = final_caption + "\n  - tag: "+ clip_medium
+                            yaml_caption = yaml_caption + "\n  - tag: "+ clip_medium
                         if clip_emotion != "":
-                            final_caption = final_caption + "\n  - tag: " + clip_emotion
+                            yaml_caption = yaml_caption + "\n  - tag: " + clip_emotion
+                        if args.tags_from_filename:
+                            for filename_tag in filename_tags:
+                                if filename_tag != "":
+                                    yaml_caption = yaml_caption + "\n  - tag: " + filename_tag
                             
                         with open(f"{name}.yaml", "w") as f:
-                            f.write(final_caption)
+                            f.write(yaml_caption)
                     else:
-                        final_caption = blip_caption
-                        if clip_medium != "":
-                            final_caption = final_caption + ", " + clip_medium
-                        if clip_emotion != "":
-                            final_caption = final_caption + ", " + clip_emotion
-                            
                         with open(f"{name}.txt", "w") as f:
-                            f.write(final_caption)
+                            f.write(text_caption)
 
                 files_processed = files_processed + 1
 

@@ -46,18 +46,6 @@ def get_args(**parser_kwargs):
         help="Path to output folder for cropped images. (default: 'output')"
         )
     parser.add_argument(
-        "--person_probability",
-        type=int,
-        default=50,
-        help="Minimum probability threshold for detecting peoeple. Lower means more false positives, higher means more false negatives. (default: 50)."
-        )
-    parser.add_argument(
-        "--face_probability",
-        type=int,
-        default=50,
-        help="Minimum probability threshold for detecting faces. Lower means more false positives, higher means more false negatives. (default: 50)."
-        )
-    parser.add_argument(
         "--append_folder_name",
         action="store_true",
         default=False,
@@ -65,15 +53,15 @@ def get_args(**parser_kwargs):
         )
     parser.add_argument(
         "--crop_people",
-        action="store_true",
-        default=False,
-        help="Crop images of people from img_dir file and save as new images in in out_dir"
+        type=int,
+        default=None,
+        help="Crop images of people if the probability is greater than the value specified value specified (example: 50)"
         )
     parser.add_argument(
         "--crop_faces",
-        action="store_true",
-        default=False,
-        help="Crop images of faces from img_dir file and save as new images in out_dir"
+        type=int,
+        default=None,
+        help="Crop images of faces if the probability is greater than the value specified value specified (example: 50)"
         )
     parser.add_argument(
         "--skip_multiples",
@@ -135,25 +123,24 @@ def open_image(full_file_path):
 
 def save_image(full_file_path, open_cv_image, args):
 
-    #Covert to PIL and write to handle more file types
+    if args.overwrite or not os.path.exists(full_file_path):
 
-    open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
-    pil_image = Image.fromarray(open_cv_image)
+        #Covert to PIL and write to handle more file types
+        open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(open_cv_image)
 
-    full_file_path = full_file_path.replace(os.path.splitext(full_file_path)[1], ".webp")
-
-    if args.overwrite or not os.path.exists(full_file_path):  
         if args.no_transpose is False:
             pil_image = transpose(pil_image)
-            
+
         if args.no_compress:
             pil_image.save(full_file_path)
         else:
             if oversize(pil_image, args.max_mp):
                 pil_image = shrink(pil_image, args)
-                                   
+                
+            full_file_path = full_file_path.replace(os.path.splitext(full_file_path)[1], ".webp")                       
             pil_image.save(full_file_path, "webp", quality=args.quality)
-                                   
+                                       
 
 def oversize(img, max_mp):
     """Check if an image is larger than the maximum size."""
@@ -188,7 +175,7 @@ def crop_people(detector, image, args):
         input_image=image,
         output_type="array",
         extract_detected_objects=False,
-        minimum_percentage_probability=args.person_probability,
+        minimum_percentage_probability=args.crop_people,
         display_percentage_probability=False,
         display_object_name=False
         )
@@ -308,7 +295,7 @@ def check_requirements(args):
         print(f" {args.out_dir} directory specified with --out_dir doesn't exist.")
         exit()
 
-    if args.crop_people == False and args.crop_faces == False:
+    if args.crop_people == None and args.crop_faces == None:
         print(f" Need to specify at least one of --crop_people or --crop_faces (both are fine)")
     
 
@@ -339,7 +326,7 @@ def main():
     person_detector.loadModel()
 
     #Load face detection model
-    face_threshold = args.face_probability / 100
+    face_threshold = args.crop_faces / 100
     face_detector = mp.solutions.face_detection.FaceDetection( min_detection_confidence = face_threshold, model_selection = 1 )
 
     folder_names = ""
@@ -383,7 +370,7 @@ def main():
                         
                 image = open_image(full_file_path)
 
-                if args.crop_people:
+                if args.crop_people is not None:
                     person_detections = crop_people(person_detector, image, args)
 
                     if args.skip_multiples is False or len(person_detections) == 1:
@@ -395,7 +382,7 @@ def main():
 
                             people_extracted = people_extracted + 1
 
-                if args.crop_faces:
+                if args.crop_faces is not None:
                     face_detections = crop_faces(face_detector, image, args)
 
                     if args.skip_multiples is False or len(face_detections) == 1:
