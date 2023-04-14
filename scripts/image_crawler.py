@@ -69,7 +69,7 @@ def crawl_url(url, queue, visited_urls, args):
         linked_url = link.get('href')
 
         if "." in linked_url:
-            if linked_url.split(".")[1] == "html":
+            if linked_url.split(".")[1] == "html" and url[-4:] != "html":
                 linked_url = url + linked_url
             
         if linked_url[0] == "/":
