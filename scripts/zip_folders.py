@@ -21,9 +21,9 @@ import zipfile
 SUPPORTED_EXT = [".jpg", ".png", ".jpeg", ".bmp", ".jfif", ".webp"]
 
 # Create a new zip file
-def create_new_zip_file(current_zip_number, args):
+def create_new_zip_file(current_zip_number, zip_name):
      
-    zip_filename = f"{args.filename}{current_zip_number:03d}.zip"
+    zip_filename = f"{zip_name}{current_zip_number:03d}.zip"
     print(f" Creating {zip_filename}")
     zip_file_path = os.path.join(args.out_dir, zip_filename)
     current_zip_number += 1
@@ -33,35 +33,36 @@ def create_new_zip_file(current_zip_number, args):
 
 def main(args):
 
-    # Create a list to store zip file paths
-    zip_files = []
 
-    # Initialize current zip file number
-    current_zip_number = 1
+    for top_subfolder in os.listdir(args.img_dir):
+        top_subfolder_path = os.path.join(args.img_dir, top_subfolder)
+        if os.path.isdir(top_subfolder_path):
 
-    # Create the first zip file
-    zip_file, current_zip_number = create_new_zip_file(current_zip_number, args)
+            # Initialize current zip file number
 
-    # Loop through all files in the directory, including subdirectories
-    for root, dir, files in os.walk(args.img_dir):
-        for filename in files:
-            file_path = os.path.join(root, filename)
-            
-            # Check if adding the file will exceed the maximum zip file size
-            file_size = os.path.getsize(file_path)
-            if zip_file.infolist() and current_zip_file_size(zip_file) + file_size > args.max_size * 1024 * 1024:
-                # Close the current zip file and create a new one
-                zip_file.close()
-                zip_file, current_zip_number = create_new_zip_file(current_zip_number, args)
+            current_zip_number = 1
+            # Create the first zip file
+            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder)
 
-            # Add the file to the current zip file with the preserved folder structure
-            zip_file.write(file_path, os.path.relpath(file_path, args.img_dir))
+            # Loop through all files in the directory, including subdirectories
+            for root, dir, files in os.walk(top_subfolder_path):
+                for filename in files:
+                    file_path = os.path.join(root, filename)
+                    
+                    # Check if adding the file will exceed the maximum zip file size
+                    file_size = os.path.getsize(file_path)
+                    if zip_file.infolist() and current_zip_file_size(zip_file) + file_size > args.max_size * 1024 * 1024:
+                        # Close the current zip file and create a new one
+                        zip_file.close()
+                        zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder)
 
-    # Close the last zip file
-    zip_file.close()
+                    # Add the file to the current zip file with the preserved folder structure
+                    zip_file.write(file_path, os.path.relpath(file_path, args.img_dir))
+
+            # Close the last zip file
+            zip_file.close()
 
     print("Compression complete!")
-    print(f"Total zip files created: {len(zip_files)}")
 
 
 
@@ -78,7 +79,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--img_dir", type=str, default="input", help="Path to images")
     parser.add_argument("--out_dir", type=str, default="output", help="Path to folder for extracted images")
-    parser.add_argument("--filename", type=str, default="images", help="Name for zip files")
     parser.add_argument("--max_size", type=int, default=512, help="max size of zip files in MB")
 
 
