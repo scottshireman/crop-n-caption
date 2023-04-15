@@ -27,6 +27,7 @@ from  pynvml import *
 import time
 from colorama import Fore, Style
 from clip_interrogator import Config, Interrogator, LabelTable, load_list
+from unidecode import unidecode
 
 
 SUPPORTED_EXT = [".jpg", ".png", ".jpeg", ".bmp", ".jfif", ".webp"]
@@ -209,6 +210,8 @@ def main():
                         if s in blip_caption:
                              blip_caption = blip_caption.replace(s, replace_text)
 
+
+
                 #query CLIP
                 clip_medium = mediums_table.rank(ci.image_to_features(image), top_count=1)[0]
                 clip_emotion = emotions_table.rank(ci.image_to_features(image), top_count=1)[0]
@@ -222,6 +225,10 @@ def main():
                             if clean_string != "":
                                 filename_tags[x] = clean_string
 
+                # Remove any non-ASCII charatcers as they cause problems with ED2
+                blip_caption = unidecode(blip_caption)
+                clip_medium = unidecode(clip_medium)
+                clip_emotion = unidecode(clip_emotion)
 
                 text_caption = blip_caption
                 if clip_medium != "":
@@ -231,6 +238,7 @@ def main():
                 if args.tags_from_filename:
                     for filename_tag in filename_tags:
                         if filename_tag != "":
+                            filename_tag = unidecode(filename_tag)
                             text_caption = text_caption + ", " + filename_tag
 
                 print(f"file: {file}, caption: {text_caption}")

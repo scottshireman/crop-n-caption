@@ -117,6 +117,7 @@ def open_image(full_file_path):
     pil_image = Image.open(full_file_path)
     pil_image = transpose(pil_image)
     open_cv_image = numpy.array(pil_image)
+    pil_image.close()
     open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_RGB2BGR)
     
     return open_cv_image
@@ -393,6 +394,7 @@ def main():
                                 save_image(os.path.join(args.out_dir, folder_names + "face_" + file_name + "_" + str(face_id) + ext), face, args)
 
                             faces_extracted = faces_extracted + 1
+
 
                 files_processed = files_processed + 1
 

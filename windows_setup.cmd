@@ -23,6 +23,10 @@ REM Install additional stuff caption.py needs
 pip install git+https://github.com/huggingface/transformers.git
 pip install pynvml==11.4.1
 pip install git+https://github.com/pharmapsychotic/clip-interrogator
+pip install unidecode
+
+REM Other scripts
+pip install boto3
 
 GOTO :eof
 
