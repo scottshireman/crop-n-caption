@@ -22,6 +22,7 @@ import numpy
 import requests
 from PIL import Image
 from PIL import ImageOps
+from PIL import ImageFile
 
 #person and face recognition
 import mediapipe as mp
@@ -113,6 +114,7 @@ def get_args(**parser_kwargs):
 
 def open_image(full_file_path):
 
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
     #Open with PIL and convert to opencv because PIL handles special characters in file names and opencv does not
     pil_image = Image.open(full_file_path)
     pil_image = transpose(pil_image)
