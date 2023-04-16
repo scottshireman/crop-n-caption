@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 
 from queue import Queue
 import shutil
+import os
 
 def get_args(**parser_kwargs):
     """Get command-line options."""
@@ -36,6 +37,12 @@ def get_args(**parser_kwargs):
         type=str,
         default=None,
         help="Ignore URL with 'thumb' in the URL"
+        )
+    parser.add_argument(
+        "--out_dir",
+        type=str,
+        default=None,
+        help="Local path to put images"
         )
 
     args = parser.parse_args()
@@ -102,7 +109,6 @@ def get_images(page, url, args):
 def download_image (url, args):
 
     if args.ignore_thumbs is False or "thumb" not in url:
-        print(f"\tDownloading {url}")
         path = url.replace(args.url,"")
         path = path.replace("/","_")
 
@@ -110,10 +116,14 @@ def download_image (url, args):
         if path.isalnum() is False:
             clean_string = "".join(ch for ch in path if (ch.isalnum() or ch == " " or ch == "_" or ch == "."))
             path = clean_string
+
+        local_path = os.path.join(args.out_dir, path)
+
+        print(f"\tDownloading {url} to {local_path}")
         
         r = requests.get(url, stream=True)  #Get request
         if r.status_code == 200:            #200 status code = OK
-           with open('output/' + path, 'wb') as f: 
+           with open(local_path, 'wb') as f: 
               r.raw.decode_content = True
               shutil.copyfileobj(r.raw, f)
     else:
