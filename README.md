@@ -74,6 +74,9 @@ This will scan all files in the ```input``` folder and all sufolders to find any
 
 
 # Caption images of people using BLIP2 and CLIP
+
+UPDATE: The below is no longer 100% accurate. Added ability to caption some articles of clothing and using a better classifier for emotions. WIP.
+
 caption.py uses BLIP2 and CLIP to create captions of people. It is not intended as a general purpose captioner, but for the very specific purpose of captioning images of people. For a more general purpose trainer I recommend [captionr](https://github.com/theovercomer8/captionr) or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
 caption.py will first use BLIP2 to generate a good base caption such as 'a woman in a coat and scarf posing in the park' and then it will use CLIP generate two tags, one descriptive of the style of the photo such as 'an outdoor photo' and the other descriptive of the person's emotion/facial expression such as 'happy'. It then writes a full caption to a txt or yaml file. The possible photo styles (mediums.txt) and emotion/expressions (emotions.txt) are fully customizable by editing the appriptiate txt file in the ```data``` folder.
