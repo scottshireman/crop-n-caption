@@ -140,8 +140,16 @@ def save_image(full_file_path, open_cv_image, args):
         else:
             if oversize(pil_image, args.max_mp):
                 pil_image = shrink(pil_image, args)
-                
-            full_file_path = full_file_path.replace(os.path.splitext(full_file_path)[1], ".webp")                       
+
+            full_file_path_minus_extension = os.path.splitext(full_file_path)[0]
+
+            if len(full_file_path_minus_extension) > 250:
+                print("File name too long. Truncating")
+                item_id = full_file_path_minus_extension[-2:]
+                full_file_path_minus_extension = full_file_path_minus_extension[:247]+item_id
+            
+            full_file_path = full_file_path_minus_extension + ".webp"
+            
             pil_image.save(full_file_path, "webp", quality=args.quality)
                                        
 
@@ -300,7 +308,7 @@ def check_requirements(args):
 
     if args.crop_people == None and args.crop_faces == None:
         print(f" Need to specify at least one of --crop_people or --crop_faces (both are fine)")
-    
+
 
 def main():
 
