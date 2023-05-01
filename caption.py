@@ -23,6 +23,7 @@ from transformers import Blip2Processor, Blip2ForConditionalGeneration, CLIPProc
 
 import torch
 from  pynvml import *
+from tqdm import tqdm
 
 import time
 from colorama import Fore, Style
@@ -228,7 +229,7 @@ def main():
         if args.replace_from_folder:
             replace_text = os.path.basename(root)
         
-        for file in files:
+        for file in tqdm(files):
             #get file extension
             ext = os.path.splitext(file)[1]
             if ext.lower() in SUPPORTED_EXT:
@@ -379,7 +380,7 @@ def main():
 
                 file_name_for_display = file.ljust(40)[:39]
     
-                print(f"{file_name_for_display} caption: {text_caption}")
+                # print(f"{file_name_for_display} caption: {text_caption}")
                 
                 # get bare name
                 name = os.path.splitext(full_file_path)[0]
