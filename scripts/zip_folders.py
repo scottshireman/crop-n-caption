@@ -18,12 +18,11 @@ import os
 import argparse
 import zipfile
 
-SUPPORTED_EXT = [".jpg", ".png", ".jpeg", ".bmp", ".jfif", ".webp"]
 
 # Create a new zip file
-def create_new_zip_file(current_zip_number, zip_name):
+def create_new_zip_file(current_zip_number, zip_name, file_type):
      
-    zip_filename = f"{zip_name}{current_zip_number:03d}.zip"
+    zip_filename = f"{zip_name}_{file_type}{current_zip_number:03d}.zip"
     print(f" Creating {zip_filename}")
     zip_file_path = os.path.join(args.out_dir, zip_filename)
     current_zip_number += 1
@@ -33,7 +32,20 @@ def create_new_zip_file(current_zip_number, zip_name):
 
 def main(args):
 
+    image_extensions = [".jpg", ".png", ".jpeg", ".bmp", ".jfif", ".webp"]
+    caption_extensions = [".txt", ".yaml"]
 
+    if args.images_only:
+        extensions_to_zip = image_extensions
+        file_type = "images"
+    elif args.captions_only:
+        extensions_to_zip = caption_extensions
+        file_type = "captions"
+    else:
+        extensions_to_zip = image_extensions + caption_extensions
+        file_type = "all"
+
+        
     for top_subfolder in os.listdir(args.img_dir):
         top_subfolder_path = os.path.join(args.img_dir, top_subfolder)
         if os.path.isdir(top_subfolder_path):
@@ -42,22 +54,28 @@ def main(args):
 
             current_zip_number = 1
             # Create the first zip file
-            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder)
+            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder, file_type)
 
             # Loop through all files in the directory, including subdirectories
             for root, dir, files in os.walk(top_subfolder_path):
                 for filename in files:
-                    file_path = os.path.join(root, filename)
+                    #get file extension
+                    file_name_and_extension = os.path.splitext(filename)
+                    file_name = file_name_and_extension[0]
+                    ext = file_name_and_extension[1]
+                    if ext.lower() in extensions_to_zip:
                     
-                    # Check if adding the file will exceed the maximum zip file size
-                    file_size = os.path.getsize(file_path)
-                    if zip_file.infolist() and current_zip_file_size(zip_file) + file_size > args.max_size * 1024 * 1024:
-                        # Close the current zip file and create a new one
-                        zip_file.close()
-                        zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder)
+                        file_path = os.path.join(root, filename)
+                        
+                        # Check if adding the file will exceed the maximum zip file size
+                        file_size = os.path.getsize(file_path)
+                        if zip_file.infolist() and current_zip_file_size(zip_file) + file_size > args.max_size * 1024 * 1024:
+                            # Close the current zip file and create a new one
+                            zip_file.close()
+                            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder, file_type)
 
-                    # Add the file to the current zip file with the preserved folder structure
-                    zip_file.write(file_path, os.path.relpath(file_path, args.img_dir))
+                        # Add the file to the current zip file with the preserved folder structure
+                        zip_file.write(file_path, os.path.relpath(file_path, args.img_dir))
 
             # Close the last zip file
             zip_file.close()
@@ -80,8 +98,18 @@ if __name__ == "__main__":
     parser.add_argument("--img_dir", type=str, default="input", help="Path to images")
     parser.add_argument("--out_dir", type=str, default="output", help="Path to folder for extracted images")
     parser.add_argument("--max_size", type=int, default=512, help="max size of zip files in MB")
-
-
+    parser.add_argument(
+        "--images_only",
+        action="store_true",
+        default=False,
+        help="Only zip image files."
+        )
+    parser.add_argument(
+        "--captions_only",
+        action="store_true",
+        default=False,
+        help="Only zip caption files (txt and yaml)."
+        )
 
     args = parser.parse_args()
 

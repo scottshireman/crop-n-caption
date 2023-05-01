@@ -21,28 +21,43 @@ from unidecode import unidecode
 SUPPORTED_EXT = [".yaml"]
 
 def find_bad_yaml(full_file_path):
-    #print(full_file_path)
+    print(f"Fixing {full_file_path} . . .")
+
+    write_file = False
     with open(full_file_path, 'r') as file :
         lines = file.readlines()
+        new_lines = []
 
         for line in lines:
-            if line.rstrip() == '  - tag:':
-                print(f"Empty tag: {full_file_path}")
 
             split_line = line.split(':')
-            if len(split_line) > 1:
-                if split_line[1].strip() == '' and split_line[0].strip() != 'tags':
-                    print(f"Bad character in {split_line[1]} in {full_file_path}")
+            new_line = line
+            
+            if len(split_line) == 1:
+                if split_line[0] != '  - tag:':
+                    new_lines.append(new_line)
 
-    with open(full_file_path, 'r') as file :
-        file_text = file.read()
+            else:
+                tag_content = ''.join(split_line[1:]).strip()
 
-    if file_text != unidecode(file_text):
-        print(f"non-ascii character found in {full_file_path}")
-        file_text = unidecode(file_text)
+                if not tag_content.isalnum():
+                    #special characters in string
+                    allowed_characters = ' +-/'
+                    tag_content = unidecode(tag_content)
+                    tag_content = "".join(ch for ch in tag_content if ch.isalnum() or ch in allowed_characters)
+
+                if not tag_content.isdigit():
+                    new_line = f"{split_line[0]}: {tag_content.strip()}\n"
+                    new_lines.append(new_line)
+
+        file.close()
+
+        new_text = ''.join(new_lines)
 
         with open(full_file_path, 'w') as file :
-            file.write(file_text)
+            file.write(new_text)
+
+        file.close()
         
 
 
@@ -62,10 +77,9 @@ def main(args):
                 full_file_path = os.path.join(root,file)
                 find_bad_yaml(full_file_path)
 
-                image_file = file_name_and_extension[0]+'.webp'
-                if not os.path.exists(os.path.join(root,image_file)):
-                    print(f"Missing image file: {image_file}")
-
+                if not os.path.exists(os.path.join(root,file_name_and_extension[0]+'.webp')) \
+                   and not os.path.exists(os.path.join(root,file_name_and_extension[0]+'.jpg')):
+                    print(f"Missing image file")
 
 
 
