@@ -1,5 +1,11 @@
 # crop-n-caption
-Two scripts useful for dealing with large image datasets of people. The first detects people and faces and crops photos. The second captions photos using BLIP2 and CLIP. BLIP2 requires a lot of VRAM so using the default options you need at least 24GB VRAM. (you can specify to use a smaller VRAM BLIP2 model with a command line argument but I haven't tested them for usefulness.)
+Three scripts useful for dealing with large image datasets of people. 
+
+crop.py: Detects people and faces in photos and videos and crops them into new images. For videos only crops images that are fairly unique and gets the least blurry frame from among similar frames.
+
+caption.py: Captions photos using BLIP2 and CLIP. Uses BLIP2 to generate a main caption and then uses a few specialized models to generate tags for things like clothing and facial expression. (default BLIP2 model requires at least 24GB VRAM, but can optionally specify a smaller BLIP2 model)
+
+calibrate.py: Uses CLIP embeddings to cluster images and pick the most representative from amongst the full set to use for training and validation.
 
 # Install
 
