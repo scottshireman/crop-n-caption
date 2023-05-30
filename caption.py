@@ -143,9 +143,8 @@ def get_lines_from_text(text_file_path):
 def get_topk_clip_matches(image, options_list, model, processor, topk=1, device="cuda"):
 
     result = []
-    inputs = processor(text=options_list, images=image, return_tensors="pt", padding=True)
-    inputs.to(device)
-
+    
+    inputs = processor(text=options_list, images=image, return_tensors="pt", padding=True).to(device)
     outputs = model(**inputs)
     logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
     probs = logits_per_image.softmax(dim=1)
@@ -164,9 +163,9 @@ def check_color(image, base_clothing, base_prob, clothing_colors, fashion_model,
     else:
         return base_clothing, base_prob
 
-def detect_emotion(image, model, extractor):
+def detect_emotion(image, model, extractor, device="cuda"):
     
-    inputs = extractor(image, return_tensors="pt")
+    inputs = extractor(image, return_tensors="pt").to(device)
 
     with torch.no_grad():
         logits = model(**inputs).logits
@@ -203,7 +202,6 @@ def main():
     clip_processor, clip_model = create_clip_processor("laion/CLIP-ViT-B-32-laion2B-s34B-b79K", device)
     print(f"Loaded. GPU memory used: {get_gpu_memory_map()} MB")
 
-
     #Open Fashion CLIP model
     print(f"\nLoading Fashion CLIP model . . .")
     fashion_processor, fashion_model = create_clip_processor("patrickjohncyh/fashion-clip", device)
@@ -212,7 +210,7 @@ def main():
     #Open emotion classifier
     print(f"\nLoading emotion classifier model . . .")
     extractor = AutoFeatureExtractor.from_pretrained("kdhht2334/autotrain-diffusion-emotion-facial-expression-recognition-40429105179")
-    model = AutoModelForImageClassification.from_pretrained("kdhht2334/autotrain-diffusion-emotion-facial-expression-recognition-40429105179")
+    model = AutoModelForImageClassification.from_pretrained("kdhht2334/autotrain-diffusion-emotion-facial-expression-recognition-40429105179").to(device)
     print(f"GPU memory used: {get_gpu_memory_map()} MB")
 
     #Get lists needed for models
@@ -257,6 +255,8 @@ def main():
                 generated_ids = blip_model.generate(**inputs, max_new_tokens=args.max_new_tokens)
                 blip_caption = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
 
+                blip_caption = blip_caption.replace(" laying ", " lying ")
+
                 if blip_caption.isalnum() is False:
                         clean_string = "".join(ch for ch in blip_caption if (ch.isalnum() or ch == " "))
                         blip_caption = clean_string
@@ -267,7 +267,7 @@ def main():
                              blip_caption = blip_caption.replace(s, replace_text)
 
                 #query CLIP - Using CLIP until more precise classification model is available
-                photo_type, photo_type_prob = get_topk_clip_matches(image, photo_types, clip_model, clip_processor, topk=1, device="cuda")
+                photo_type, photo_type_prob = get_topk_clip_matches(image, photo_types, clip_model, clip_processor, topk=1, device=device)
 
                 if photo_type[0] == "a beach photo":
                     photo_type_caption = photo_type[0]
@@ -302,9 +302,8 @@ def main():
                 else:
                     photo_type_caption = "a photo"
 
- 
                 #Query Fashion CLIP
-                whole, whole_prob = get_topk_clip_matches(image, clothing, fashion_model, fashion_processor, 1, device)
+                whole, whole_prob = get_topk_clip_matches(image, clothing, fashion_model, fashion_processor, 1, device=device)
                 clothes_caption = ""
 
                 if whole[0] in "closeup of face" and whole_prob[0] >= 0.5:
@@ -343,7 +342,7 @@ def main():
                             clothes_caption = ", ".join([clothes_caption, color])
 
                 # Classify emotion
-                emotion, emotion_prob = detect_emotion(image, model, extractor)
+                emotion, emotion_prob = detect_emotion(image, model, extractor, device=device)
                 emotion_caption = ""
     
                 if emotion == "happy" and emotion_prob >= 0.5:
