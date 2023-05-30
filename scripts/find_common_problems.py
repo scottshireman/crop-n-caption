@@ -20,46 +20,67 @@ from unidecode import unidecode
 
 SUPPORTED_EXT = [".yaml"]
 
-def find_bad_yaml(full_file_path):
-    print(f"Fixing {full_file_path} . . .")
+def cleanup_string(string):
 
+    if string.isalnum() is False:
+        string = "".join(ch for ch in string if (ch.isalnum() or ch == " "))
+
+    string = unidecode(string)
+    string = string.strip()
+
+    return string
+
+def find_bad_yaml(full_file_path):
+
+    new_lines = []
+    allowed_characters = ' +-/'
+        
     write_file = False
     with open(full_file_path, 'r') as file :
         lines = file.readlines()
-        new_lines = []
+        
+    file.close()
+        
+    for line in lines:
 
-        for line in lines:
-
-            split_line = line.split(':')
-            new_line = line
-            
-            if len(split_line) == 1:
-                if split_line[0] != '  - tag:':
-                    new_lines.append(new_line)
-
+        split_line = line.split(':')
+        new_line = line
+        
+        if len(split_line) == 1:
+            if split_line[0] != '  - tag:':
+                new_lines.append(new_line)
             else:
-                tag_content = ''.join(split_line[1:]).strip()
+                print(f"{full_file_path} had an empty tag")
+                write_file = False
 
-                if not tag_content.isalnum():
-                    #special characters in string
-                    allowed_characters = ' +-/'
-                    tag_content = unidecode(tag_content)
-                    tag_content = "".join(ch for ch in tag_content if ch.isalnum() or ch in allowed_characters)
+        else:
+            tag_content = ''.join(split_line[1:]).strip().replace('\n','')
 
-                if not tag_content.isdigit():
-                    new_line = f"{split_line[0]}: {tag_content.strip()}\n"
-                    new_lines.append(new_line)
+            if not tag_content.isalnum():
+                # print(f"{full_file_path} had special characters in string")
+                tag_content = cleanup_string(tag_content)
+                write_file = True
 
-        file.close()
+            if " laying " in tag_content:
+                tag_content = tag_content.replace(" laying ", " lying ")
+                print(tag_content)
 
-        new_text = ''.join(new_lines)
+            if " are posing for a picture" in tag_content:
+                print(full_file_path, tag_content)
 
+            new_line = f"{split_line[0]}: {tag_content.strip()}\n"
+            new_lines.append(new_line)
+
+
+
+    new_text = ''.join(new_lines)
+
+    if write_file:
         with open(full_file_path, 'w') as file :
             file.write(new_text)
 
         file.close()
         
-
 
 
 def main(args):

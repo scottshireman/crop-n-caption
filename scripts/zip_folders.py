@@ -20,9 +20,9 @@ import zipfile
 
 
 # Create a new zip file
-def create_new_zip_file(current_zip_number, zip_name, file_type):
+def create_new_zip_file(current_zip_number, zip_name, file_type, prefix_folder):
      
-    zip_filename = f"{zip_name}_{file_type}{current_zip_number:03d}.zip"
+    zip_filename = f"{zip_name}_{file_type}_{prefix_folder}{current_zip_number:03d}.zip"
     print(f" Creating {zip_filename}")
     zip_file_path = os.path.join(args.out_dir, zip_filename)
     current_zip_number += 1
@@ -54,7 +54,7 @@ def main(args):
 
             current_zip_number = 1
             # Create the first zip file
-            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder, file_type)
+            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder, file_type, args.prefix_folder)
 
             # Loop through all files in the directory, including subdirectories
             for root, dir, files in os.walk(top_subfolder_path):
@@ -72,10 +72,11 @@ def main(args):
                         if zip_file.infolist() and current_zip_file_size(zip_file) + file_size > args.max_size * 1024 * 1024:
                             # Close the current zip file and create a new one
                             zip_file.close()
-                            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder, file_type)
+                            zip_file, current_zip_number = create_new_zip_file(current_zip_number, top_subfolder, file_type, args.prefix_folder)
 
                         # Add the file to the current zip file with the preserved folder structure
-                        zip_file.write(file_path, os.path.relpath(file_path, args.img_dir))
+                        relative_path = os.path.join(args.prefix_folder,os.path.relpath(file_path, args.img_dir))
+                        zip_file.write(file_path, relative_path)
 
             # Close the last zip file
             zip_file.close()
@@ -97,6 +98,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--img_dir", type=str, default="input", help="Path to images")
     parser.add_argument("--out_dir", type=str, default="output", help="Path to folder for extracted images")
+    parser.add_argument("--prefix_folder", type=str, default="training", help="Folder name to be prefixed to the relative path of the files in the zip")
     parser.add_argument("--max_size", type=int, default=512, help="max size of zip files in MB")
     parser.add_argument(
         "--images_only",
