@@ -22,12 +22,13 @@ import numpy
 import requests
 import shutil
 import math
-import dlib
 
 from PIL import Image
 from PIL import ImageOps
 from PIL import ImageFile
 from tqdm import tqdm
+from skimage.metrics import structural_similarity
+
 
 #person and face recognition
 from transformers import DetrImageProcessor, DetrForObjectDetection
@@ -60,10 +61,10 @@ def get_args(**parser_kwargs):
         help="Path to output folder for cropped images. (default: 'output')"
         )
     parser.add_argument(
-        "--append_folder_name",
+        "--folders",
         action="store_true",
         default=False,
-        help="Prepends to output filenames the names of all subfolders the input file is nested in, delimitted by '_' Helpful for some large datasets with lots of meaningful subfolders that can be used later for caption tags."
+        help="Recurse through each subfolder in img_dir and run the script at that level instead of top level."
         )
     parser.add_argument(
         "--crop_people",
@@ -78,11 +79,23 @@ def get_args(**parser_kwargs):
         help="Crop images of faces if the probability is greater than the value specified value specified (example: 50)"
         )
     parser.add_argument(
-        "--skip_multiples",
+        "--training_size",
+        type=int,
+        default=512,
+        help="The resolution at which you intend to train. Cropped images that are smaller than that will be written to 'small' subfolder created in the output folder. Specify 0 to ignore. (default: 512)",
+    )
+    parser.add_argument(
+        "--video",
         action="store_true",
         default=False,
-        help="Some images have lots of people/faces and by default all will be extracted. For very large datasets that might mean a lot of false negatives. Set this option to ignore any input image that has multiple people or faces (evaluated seperately)."
-        )
+        help="Also extract unique frames from videos",
+    )
+    parser.add_argument(
+        "--best_only",
+        action="store_true",
+        default=False,
+        help="Only get the best person or face image from each frame, not all.",
+    )
     parser.add_argument(
         "--no_compress",
         action="store_true",
@@ -92,7 +105,7 @@ def get_args(**parser_kwargs):
     parser.add_argument(
         "--max_mp",
         type=float,
-        default=1.5,
+        default=2.0,
         help="Maximum megapixels to save cropped output images. Larger images will be shrunk to this value. Images with not be resized at all if --no_compress flag is set. (default: 1.5)",
     )
     parser.add_argument(
@@ -107,30 +120,7 @@ def get_args(**parser_kwargs):
         default=False,
         help="Overwrite files in output directory if they already exist",
     )
-    parser.add_argument(
-        "--no_transpose",
-        action="store_true",
-        default=False,
-        help="By default images will be transposed to proper orientation if exif data on the roper orientation exists even if --no_compress is specified. Set this flag to disable.",
-    )
-    parser.add_argument(
-        "--video",
-        type=int,
-        default=0,
-        help="Also extract every n frame of videos found where is the integer specified. (default: 0 = won't extract videos)",
-    )
-    parser.add_argument(
-        "--blur_threshold",
-        type=int,
-        default=0,
-        help="If extracting from video specify blur threshold for filtering out blurry images. 100 is a good value. (default: 0 = will keep all)",
-    )
-    parser.add_argument(
-        "--training_size",
-        type=int,
-        default=512,
-        help="The resolution at which you intend to train. Cropped images that are smaller than that will be written to 'small' subfolder created in the output folder. Specify 0 to ignore. (default: 512)",
-    )
+
     
     args = parser.parse_args()
     args.max_mp = args.max_mp * 1024000
@@ -141,17 +131,13 @@ def open_image(full_file_path):
 
     open_cv_image = cv2.imread(full_file_path)
     
-##    ImageFile.LOAD_TRUNCATED_IMAGES = True
-##    #Open with PIL and convert to opencv because PIL handles special characters in file names and opencv does not
-##    pil_image = Image.open(full_file_path)
-##    pil_image = transpose(pil_image)
-##    open_cv_image = numpy.array(pil_image)
-##    pil_image.close()
-##    open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_RGB2BGR)
-    
     return open_cv_image
 
-def get_write_path(open_cv_image, filename, extension, args):
+def get_write_path(open_cv_image, filename, extension, folder_path, args):
+
+    relative_path = os.path.relpath(folder_path, args.img_dir)
+    output_path = os.path.join(args.out_dir, relative_path)
+    small_path = os.path.join(args.out_dir, "small", relative_path)
 
     full_file_path = None
     dimensions = open_cv_image.shape[0] * open_cv_image.shape[1]
@@ -162,16 +148,16 @@ def get_write_path(open_cv_image, filename, extension, args):
     else:
         if not args.no_compress:
             if dimensions > args.training_size:
-                full_file_path = os.path.join(args.out_dir,filename+'.webp')
+                full_file_path = os.path.join(output_path,filename+'.webp')
 
             else:
-                full_file_path = os.path.join(args.out_dir,"small",filename+'.webp')
+                full_file_path = os.path.join(small_path,filename+'.webp')
 
         else:
             if dimensions > args.training_size:
-                full_file_path = os.path.join(args.out_dir,filename+extension)
+                full_file_path = os.path.join(output_path,filename+extension)
             else:
-                full_file_path = os.path.join(args.out_dir,"small",filename+extension)
+                full_file_path = os.path.join(small_path,filename+extension)
 
         return full_file_path
         
@@ -188,6 +174,9 @@ def save_image(open_cv_image, full_file_path, args):
 
     return False
                     
+def cleanup_folder(path):
+    if os.path.exists(path) and len(os.listdir(path)) == 0:
+        os.rmdir(path)
 
 def check_shape(box_points, image_width, image_height):
     #ED2 requires rations between 1:4 and 4:1 so we need to adjust the box points accordingily
@@ -270,15 +259,18 @@ def check_blur(image):
 
 def check_frame_diff(image_new, image_old):
 
-    width = 1024
-    height = 1024
+    width = 256
+    height = 256
     dim = (width, height)
 
     #convert to grayscale and same dimensions for simple comparison.
     image_new = cv2.cvtColor(cv2.resize(image_new, dim, interpolation = cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
     image_old = cv2.cvtColor(cv2.resize(image_old, dim, interpolation = cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
 
-    diff = cv2.absdiff(image_new, image_old).sum() / 1024 / 1024 / 256
+##    #structural_similarity
+##    score, diff = structural_similarity(image_new, image_old, full=True)
+##    #print("SSIM: {}".format(score))
+    diff = cv2.absdiff(image_new, image_old).sum() / 256 / 256 / 256
 
     return diff
 
@@ -305,92 +297,73 @@ def extract_from_video(full_file_path, face_detector, person_model, person_proce
     # If they are, find the least blurry image from the last block and add it to keyframes
     # If not, add them to the current block and move on
     # Return keyframes
-    
-    unique_face_images = []
-    unique_face_encodings = []
-    
+
+    face_images = []
     person_images = []
+    unique_face_images = []
     unique_person_images = []
-    unique_person_encodings = []
+    threshold = 0.25
 
-    first_face = True
-    first_person = True
-
+    last_face = None
+    last_person = None
+    
     video = cv2.VideoCapture(full_file_path)
     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    for frame_id in tqdm(range(frame_count), desc='Extracting faces and people from frames', position=1, leave=False):
-    
+    for frame_id in tqdm(range(frame_count), desc=f'Extracting frames from {os.path.basename(full_file_path)}', position=1, leave=False):
+
         video.set(1, frame_id);
         success, image = video.read()
 
         if success:
-            frame_face_images, frame_face_encodings = get_face_images(image, face_detector)
-            frame_person_images, frame_person_encodings = get_person_images(image, args.crop_people, person_model, person_processor, device)
+            frame_face_images = get_face_images(image, face_detector, args.best_only)
+            frame_person_images = get_person_images(image, args.crop_people, person_model, person_processor, device, args.best_only)
 
             if len(frame_face_images) == 1:
-                if check_blur(frame_face_images[0]) > args.blur_threshold:
-                    if first_face:
-                        # First face always starts a new block of similar faces.
+
+                if last_face is not None:
+                    if check_frame_diff( frame_face_images[0], last_face ) > threshold:
+                        # Found a signficant change, ie, the start of a new block of similar faces!
+                        # Get the least blurry face from the previous block.
+                        least_blurry_frame_id = find_least_blurry_frame_id(face_images)
+                        unique_face_images.append(face_images[least_blurry_frame_id])
+                        
+                        # Then, start a new block of similar faces with the current face.
                         face_images = []
-                        face_encodings = []
                         face_images.append(frame_face_images[0])
-##                        face_encodings.append(frame_face_encodings[0])
                         last_face = frame_face_images[0]
+
                     else:
-                        if check_frame_diff( frame_face_images[0], last_face ) > threshold:
-                            # Found a signficant change, ie, the start of a new block of similar faces!
-                            # Get the least blurry face from the previous block.
-                            least_blurry_frame_id = find_least_blurry_frame_id(face_images)
-
-                            unique_face_images.append(face_images[least_blurry_frame_id])
-##                            unique_face_encodings.append(face_encodings[least_blurry_frame_id])
-                            
-
-                            # Then, start a new block of similar faces with the current face.
-                            face_images = []
-                            face_encodings = []
-                            face_images.append(frame_face_images[0])
-##                            face_encodings.append(frame_face_encodings[0])
-                            last_face = frame_face_images[0]
-
-                        else:
-                            # Didn't find start of a new block so just append to old block and move on.
-                            face_images.append(frame_face_images[0])
-##                            face_encodings.append(frame_face_encodings[0])
-                            last_face = frame_face_images[0]
+                        # Didn't find start of a new block so just append to old block and move on.
+                        face_images.append(frame_face_images[0])
+                else:
+                    # First face always starts a new block of similar faces.
+                    face_images = []
+                    face_images.append(frame_face_images[0])
+                    last_face = frame_face_images[0]
 
             if len(frame_person_images) == 1:
-                if check_blur(frame_person_images[0]) > args.blur_threshold:
-                    if first_person:
-                        # First face always starts a new block of similar faces.
+                if last_person is not None:
+                    if check_frame_diff( frame_person_images[0], last_person ) > threshold:
+                        
+                        # Found a signficant change, ie, the start of a new block of similar faces!
+                        # Get the least blurry face from the previous block.
+                        least_blurry_frame_id = find_least_blurry_frame_id(person_images)
+                        unique_person_images.append(person_images[least_blurry_frame_id])
+
+                        # Then, start a new block of similar faces with the current face.
                         person_images = []
                         person_images.append(frame_person_images[0])
-##                        person_encodings.append(frame_person_encodings[0])
                         last_person = frame_person_images[0]
+
                     else:
-                        if check_frame_diff( frame_person_images[0], last_person ) > threshold:
-                            # Found a signficant change, ie, the start of a new block of similar faces!
-                            # Get the least blurry face from the previous block.
-                            least_blurry_frame_id = find_least_blurry_frame_id(person_images)
-                            unique_person_images.append(person_images[least_blurry_frame_id])
-##                            unique_person_encodings.append(person_encodings[least_blurry_frame_id])
-
-
-                            # Then, start a new block of similar faces with the current face.
-                            person_images = []
-                            person_encodings = []
-
-                            person_images.append(frame_person_images[0])
-##                            person_encodings.append(frame_person_encodings[0])
-                            last_person = frame_person_images[0]
-
-                        else:
-                            # Didn't find start of a new block so just append to old block and move on.
-                            person_images.append(frame_person_images[0])
-##                            person_encodings.append(frame_person_encodings[0])
-
-                            last_person = frame_person_images[0]
+                        # Didn't find start of a new block so just append to old block and move on.
+                        person_images.append(frame_person_images[0])
+                else:
+                    # First face always starts a new block of similar faces.
+                    person_images = []
+                    person_images.append(frame_person_images[0])
+                    last_person = frame_person_images[0]
 
     video.release()
 
@@ -398,19 +371,15 @@ def extract_from_video(full_file_path, face_detector, person_model, person_proce
     if len(face_images) > 0:
         least_blurry_frame_id = find_least_blurry_frame_id(face_images)
         unique_face_images.append(face_images[least_blurry_frame_id])
-##        unique_face_encodings.append(face_encodings[least_blurry_frame_id])
         face_images = []
 
     # Get the least blurry person from the last block of similar persons.
     if len(person_images) > 0:
         least_blurry_frame_id = find_least_blurry_frame_id(person_images)
         unique_person_images.append(person_images[least_blurry_frame_id])
-##        unique_person_encodings.append(person_images[least_blurry_frame_id])
-
         person_images = []
 
-
-    return unique_face_images, unique_face_encodings, unique_person_images, unique_person_encodings
+    return unique_face_images, unique_person_images
 
 
 def find_least_blurry_frame_id(frames):
@@ -429,11 +398,30 @@ def find_least_blurry_frame_id(frames):
 
         return least_blurry_frame
 
+def shrink_image(image, max_mp):
 
-def get_person_images(image, threshold, model, processor, device, object_to_find = 'person'):
+    scale_factor = 1
+
+    width = image.shape[0]
+    height = image.shape[1]
+    dimensions = width * height
+
+    max_pixels = max_mp * 1024 * 1024
+
+    if dimensions > max_pixels:
+        scale_factor = (max_pixels / dimensions) ** 0.5
+
+        new_width = int(width * scale_factor)
+        new_height = int(height * scale_factor)
+
+        image = cv2.resize(image, (new_width, new_height), interpolation = cv2.INTER_AREA)
+
+
+    return image, scale_factor
+
+def get_person_images(image, threshold, model, processor, device, best_only, object_to_find = 'person'):
 
     objects_detected = []
-    encodings = []
     
     inputs = processor(images=image, return_tensors="pt")
     inputs.to(device)
@@ -442,38 +430,127 @@ def get_person_images(image, threshold, model, processor, device, object_to_find
     target_sizes = torch.tensor([image.shape[:2]])
     results = processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold/100)[0]
 
+    highest_score = 0
+    best_image = None
+
     for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
         box = [round(i) for i in box.tolist()]
         if model.config.id2label[label.item()] == object_to_find:
 
-            box_points = check_shape(box, image.shape[1], image.shape[0])
+            if best_only:
+                if score.item() > highest_score:
+                    highest_score = score.item()
+                    box_points = check_shape(box, image.shape[1], image.shape[0])
+                    best_image = crop_within_bounds(image, box_points[1], box_points[3], box_points[0], box_points[2])
+
+            else:
+                box_points = check_shape(box, image.shape[1], image.shape[0])
             
-            cropped_image = crop_within_bounds(image, box_points[1], box_points[3], box_points[0], box_points[2])
-            objects_detected.append(cropped_image)
-##            _, encodings = get_face_images(cropped_image)
-##            encodings.append(encodings[0])
+                cropped_image = crop_within_bounds(image, box_points[1], box_points[3], box_points[0], box_points[2])
+                objects_detected.append(cropped_image)
+
+    if best_only and best_image is not None:
+        objects_detected.append(best_image)
             
-    return objects_detected, encodings
+    return objects_detected
 
 
-def get_face_images(image, detector):
+def get_face_images(image, detector, best_only = False):
 
+    face_inflation_percent = 0.4
     objects_detected = []
-    encodings = []
 
     detections = detector.detect(image)
 
     for detection in detections:
         box = [round(detection[i]) for i in range(0,4)]
         box_points = check_shape(box, image.shape[1], image.shape[0])
-        objects_detected.append(get_inflated_face_image(image, box_points[1], box_points[3], box_points[0], box_points[2], 0.4))
+        cropped_image = get_inflated_face_image(image, box_points[1], box_points[3], box_points[0], box_points[2], face_inflation_percent)
+        objects_detected.append(cropped_image)
 
-    return objects_detected, encodings
+        if best_only:
+            #These results come back sorted so can stop after the first if we only want the best
+            break
 
-def encoding_stuff():
+    return objects_detected
 
-    return True
+def process_folder(folder_path, person_processor, person_model, face_detector, device, args):
+
+    relative_path = os.path.relpath(folder_path, args.img_dir)
+    output_path = os.path.join(args.out_dir, relative_path)
+    done_path = os.path.join(args.img_done, relative_path)
+    small_path = os.path.join(args.out_dir, "small", relative_path)
+
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+
+    if args.img_done is not None and not os.path.exists(done_path):
+        os.mkdir(done_path)
+
+    if args.training_size > 0 and not os.path.exists(small_path):
+        os.mkdir(small_path)
+            
+    folder_names = ""
+
+    # os.walk all files in folder_path recursively
+    for root, dirs, files in os.walk(folder_path):
+        for file in tqdm(files, position=0, leave=True, desc=os.path.basename(folder_path)):
+        # for file in files:
+
+            #get file extension
+            file_name_and_extension = os.path.splitext(file)
+            file_name = file_name_and_extension[0]
+            ext = file_name_and_extension[1]
+            full_file_path = os.path.join(root, file)
+
+            if ext.lower() in SUPPORTED_EXT:
+                image = open_image(full_file_path)
+                
+                people_extracted_from_image = get_person_images(image, args.crop_people, person_model, person_processor, device, args.best_only)
+                if len(people_extracted_from_image) > 0:
+                    for person_no, person in enumerate(people_extracted_from_image):
+                        full_write_path = get_write_path(person, file_name + "_person_" + str(person_no).zfill(3), ext, folder_path, args)
+                        save_image(person, full_write_path, args)
+
+                people_extracted_from_image = []
+
+                faces_extracted_from_image = get_face_images(image, face_detector, args.best_only)
+                if len(faces_extracted_from_image) > 0:
+                    for face_no, face in enumerate(faces_extracted_from_image):
+                        full_write_path = get_write_path(face, file_name + "_face_" + str(face_no).zfill(3), ext, folder_path, args)
+                        save_image(face, full_write_path, args)
+                        
+                faces_extracted_from_image = []
+
+
+            elif args.video and ext.lower() in VIDEO_EXT:
+
+                faces_extracted_from_video, people_extracted_from_video = \
+                            extract_from_video(full_file_path, face_detector, person_model, person_processor, args, device)
+
+                if len(people_extracted_from_video) > 0:
+                    for person_no, person in enumerate(people_extracted_from_video):
+                        full_write_path = get_write_path(person, file_name + "_person_" + str(person_no).zfill(3), ext, folder_path, args)
+                        save_image(person, full_write_path, args)
+
+                people_extracted_from_image = []
+
+                if len(faces_extracted_from_video) > 0:
+                    for face_no, face in enumerate(faces_extracted_from_video):
+                        full_write_path = get_write_path(face, file_name + "_face_" + str(face_no).zfill(3), ext, folder_path, args)
+                        save_image(face, full_write_path, args)
+                            
+                faces_extracted_from_video = []
+
+            if args.img_done is not None:
+                if os.path.exists(args.img_done) and not os.path.exists(os.path.join(args.img_done,file)):
+                    shutil.move(full_file_path, done_path)
+
+    cleanup_folder(output_path)
+    cleanup_folder(small_path)
+    cleanup_folder(folder_path)
     
+
 def main():
 
     start_time = time.time()
@@ -492,106 +569,23 @@ def main():
 
     #Load face detection model
     # face_threshold = args.crop_faces / 100 
-    face_detector = face_detection.build_detector("DSFDDetector", confidence_threshold=args.crop_faces/100, nms_iou_threshold=.3, device=device)
+    face_detector = face_detection.build_detector("DSFDDetector", confidence_threshold=args.crop_faces/100, nms_iou_threshold=.1, device=device)
     
-    folder_names = ""
+    if args.training_size >0:
+        small_path = os.path.join(args.out_dir, "small")
+        if not os.path.exists(small_path):
+            os.mkdir(small_path)
 
-    small_dir = "small"
-    if args.training_size > 0 and not os.path.exists(os.path.join(args.out_dir,small_dir)):
-        os.mkdir(os.path.join(args.out_dir,small_dir))
 
-    print(f"\nExtracting files in {args.img_dir}")
-    # os.walk all files in args.img_dir recursively
-    for root, dirs, files in os.walk(args.img_dir):
-        tqdm_files = tqdm(files, position=0, leave=True)
-        for file in tqdm_files:
-            tqdm_files.set_description(f"Extracting from {file}")
-            tqdm_files.refresh()
-            
-            #get file extension
-            file_name_and_extension = os.path.splitext(file)
-            file_name = file_name_and_extension[0]
-            ext = file_name_and_extension[1]
-            full_file_path = os.path.join(root, file)
+    if args.folders:
+        for file_object in os.scandir(args.img_dir):
+            if file_object.is_dir():
+                process_folder(file_object, person_processor, person_model, face_detector, device, args)
 
-            if ext.lower() in SUPPORTED_EXT:
-                folder_names = root.replace(args.img_dir,"")
-                relative_path = os.path.join(folder_names, file)
-                folder_names = folder_names.replace("\\","_")
-                
-                if args.append_folder_name:
-                    
-                    #PIL allowed us to open files with special characters, but we need to remove them out before writing
-                    if folder_names.isalnum() is False:
-                        clean_string = "".join(ch for ch in folder_names if (ch.isalnum() or ch == " " or ch == "_"))
-                        folder_names = clean_string
-
-                    if folder_names != "":
-                        if folder_names[0] == "_":
-                            folder_names = folder_names[1:]
-
-                    if folder_names != "":
-                        folder_names = folder_names + "__"
+    else:
+        process_folder(args.img_dir, person_processor, person_model, face_detector, device, args)
                         
-                else:
-                    folder_names = ""
-
-                image = open_image(full_file_path)
-                
-                people_extracted_from_image, person_encodings = get_person_images(image, args.crop_people, person_model, person_processor, device)
-                if len(people_extracted_from_image) > 0:
-                    for person_no, person in enumerate(people_extracted_from_image):
-                        full_write_path = get_write_path(person, file_name + "_person_" + str(person_no).zfill(3), ext, args)
-                        if save_image(person, full_write_path, args):
-                            #do encoding stuff
-                            encoding_stuff()
-                            
-
-                people_extracted_from_image = []
-
-                faces_extracted_from_image, face_encodings = get_face_images(image, face_detector)
-                if len(faces_extracted_from_image) > 0:
-                    for face_no, face in enumerate(faces_extracted_from_image):
-                        full_write_path = get_write_path(face, file_name + "_face_" + str(face_no).zfill(3), ext, args)
-                        if save_image(face, full_write_path, args):
-                            #do encoding stuff
-                            encoding_stuff()
-                        
-                faces_extracted_from_image = []
-
-
-            elif args.video != 0 and ext.lower() in VIDEO_EXT:
-
-                faces_extracted_from_image, face_encodings, people_extracted_from_image, person_encodings = \
-                            extract_from_video(full_file_path, face_detector, person_model, person_processor, args, device)
-
-                if len(people_extracted_from_image) > 0:
-                    for person_no, person in enumerate(people_extracted_from_image):
-                        full_write_path = get_write_path(person, file_name + "_person_" + str(person_no).zfill(3), ext, args)
-                        if save_image(person, full_write_path, args):
-                            #do encoding stuff
-                            encoding_stuff()
-
-                people_extracted_from_image = []
-
-                if len(faces_extracted_from_image) > 0:
-                    for face_no, face in enumerate(faces_extracted_from_image):
-                        full_write_path = get_write_path(face, file_name + "_face_" + str(face_no).zfill(3), ext, args)
-                        if save_image(face, full_write_path, args):
-                            #do encoding stuff
-                            encoding_stuff()
-                            
-                faces_extracted_from_image = []
-
-            if args.img_done is not None:
-                    if os.path.exists(args.img_done) and not os.path.exists(os.path.join(args.img_done,file)):
-                        shutil.move(full_file_path, args.img_done)
-                        
-                
-
-    exec_time = time.time() - start_time
-    print(f"  Processed {files_processed} files in {exec_time} seconds for an average of {exec_time/files_processed} sec/file.")
-    print(f"  Extracted {people_extracted} images of people and {faces_extracted} images of faces.")        
+                      
 
 
 if __name__ == "__main__":

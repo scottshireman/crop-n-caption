@@ -177,6 +177,16 @@ def detect_emotion(image, model, extractor):
 
     return model.config.id2label[predicted_label], round(probs[0][logits.argmax(-1).item()].item(), 2)
 
+def cleanup_string(string):
+
+    if string.isalnum() is False:
+        string = "".join(ch for ch in string if (ch.isalnum() or ch == " "))
+
+    string = unidecode(string)
+    string = string.strip()
+    
+    return string
+
 def main():
 
     args = get_args()
@@ -229,16 +239,20 @@ def main():
         if args.replace_from_folder:
             replace_text = os.path.basename(root)
         
-        for file in tqdm(files):
+        for file in tqdm(files, desc=os.path.basename(root)):
             #get file extension
             ext = os.path.splitext(file)[1]
             if ext.lower() in SUPPORTED_EXT:
                 full_file_path = os.path.join(root, file)
-                image = Image.open(full_file_path)
+                try:
+                    image = Image.open(full_file_path)
+                except:
+                    print(f"Unable to open {full_file_path}. Skipping to next file.")
+                    continue
+                    
 
                 #query BLIP
                 inputs = blip_processor(images=image, return_tensors="pt").to(device, dtype)
-
 
                 generated_ids = blip_model.generate(**inputs, max_new_tokens=args.max_new_tokens)
                 blip_caption = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
@@ -351,14 +365,11 @@ def main():
                     emotion_caption = emotion
 
 
-                # Remove any non-ASCII charatcers as they cause problems with ED2
-                blip_caption = unidecode(blip_caption).strip()
-
-                # Remove any leading or trailing white space from CLIP captions
-                photo_type_caption = photo_type_caption.strip()
-                emotion_caption = emotion_caption.strip()
-                clothes_caption = clothes_caption.strip()
-                
+                # Remove any non-ASCII charatcers and leading/trailing white space as they cause problems with ED2
+                blip_caption = cleanup_string(blip_caption)
+                photo_type_caption = cleanup_string(photo_type_caption)
+                emotion_caption = cleanup_string(emotion_caption)
+                clothes_caption = cleanup_string(clothes_caption)
 
                 #Build full caption string
                 text_caption = blip_caption
@@ -412,9 +423,6 @@ def main():
                             f.write(text_caption)
 
                 files_processed = files_processed + 1
-
-    exec_time = time.time() - start_time
-    print(f"  Processed {files_processed} files in {exec_time} seconds for an average of {exec_time/files_processed} sec/file.")
     
 
 if __name__ == "__main__":
