@@ -18,6 +18,7 @@ import os
 import argparse
 import time
 import boto3
+from tqdm import tqdm
 
 SUPPORTED_EXT = [".zip"]
 
@@ -43,8 +44,18 @@ def upload_file(bucket, file_name, object_name=None):
         object_name = os.path.basename(file_name)
 
     # Upload the file
+    file_size = os.stat(file_name).st_size
+    basename = os.path.basename(file_name)
 
-    bucket.upload_file(file_name, object_name, ExtraArgs={'ContentType': 'application/zip'})
+    with tqdm(total=file_size, unit="B", unit_scale=True, desc=basename, position=0, leave=True) as pbar:
+        bucket.upload_file(
+            file_name,
+            object_name,
+            ExtraArgs={'ContentType': 'application/zip'},
+            Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+        )
+
+    #bucket.upload_file(file_name, object_name, ExtraArgs={'ContentType': 'application/zip'})
 
     return True
 
@@ -97,11 +108,11 @@ def main(args):
             ext = file_name_and_extension[1]
             if ext.lower() in SUPPORTED_EXT:
                 full_file_path = os.path.join(root,file)
-                print(f"Uploading {file} . . . ")
-                if upload_file(bucket, full_file_path, file):
-                    print(f"\tSuccessfully uploaded {file}")
-                else:
-                    print(f"\tFailed to upload {file}")
+                basename = os.path.basename(full_file_path)
+                
+                if not upload_file(bucket, full_file_path, file):
+                    print(f"Error uploading {file}")
+                    quit()
 
 
 
