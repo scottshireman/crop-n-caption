@@ -25,7 +25,7 @@ activate_venv.bat
 
 
 # Crop images of people and/or faces from photos
-crop.py uses the imageai library to detect people and the mediapipe library to detect faces in photos. It then crops people/faces and saves them as new images. It will fix orientation issues if exif data is available and will ensure output image aspect ratios are between 1:4 to 4:1. The resuling images work very well in Stable Diffusion trainers such as [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
+crop.py detects people and faces in photos and videos. It then crops people/faces and saves them as new images. It will fix orientation issues if exif data is available and will ensure output image aspect ratios are between 1:4 to 4:1. The resuling images work very well in Stable Diffusion trainers such as [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
 #  Usage
 Assuming venv is active, you can see the parameters needed by typing
@@ -72,24 +72,15 @@ optional arguments:
                         written to 'small' subfolder created in the output folder. Specify 0 to ignore. (default: 512)
 ```
 
-The simplest usage would be to run the following command:
-```
-python crop.py --crop_people --crop_faces
-```
-This will scan all files in the ```input``` folder and all sufolders to find anything the models is at least 50% confident is a person or face, crop those people and faces, and save them as new images in the ```output``` folder as webp files. Any files smaller than 262,144 pixels needed to train at 512 resoltuon will instead be written to the ```small``` subfolder inside the ```output``` folder.
-
 
 # Caption images of people using BLIP2 and CLIP
+caption.py uses BLIP2 and CLIP to create captions of people. It is not intended as a general purpose captioner, but for the very specific purpose of captioning photos of people. For a more general purpose trainer I recommend [captionr](https://github.com/theovercomer8/captionr) or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
 
-UPDATE: The below is no longer 100% accurate. Added ability to caption some articles of clothing and using a better classifier for emotions. WIP.
-
-caption.py uses BLIP2 and CLIP to create captions of people. It is not intended as a general purpose captioner, but for the very specific purpose of captioning images of people. For a more general purpose trainer I recommend [captionr](https://github.com/theovercomer8/captionr) or the caption.py script that is included in [EveryDream2](https://github.com/victorchall/EveryDream2trainer).
-
-caption.py will first use BLIP2 to generate a good base caption such as 'a woman in a coat and scarf posing in the park' and then it will use CLIP generate two tags, one descriptive of the style of the photo such as 'an outdoor photo' and the other descriptive of the person's emotion/facial expression such as 'happy'. It then writes a full caption to a txt or yaml file. The possible photo styles (mediums.txt) and emotion/expressions (emotions.txt) are fully customizable by editing the appriptiate txt file in the ```data``` folder.
+caption.py will first use BLIP2 to generate a good base caption such as 'a woman in a coat and scarf posing in the park' and then it will use FasionCLIP generate tags for clothing and another model to generate a tag for emotion/facial expression such as 'happy'. It then writes a full caption to a txt or yaml file.
 
 The end result in this example could be a text file as follows (default):
 ```
-a woman in a coat and scarf posing in the park, an outdoor photo, happy
+a woman in a coat and scarf posing in the park, an outdoor photo, black skirt, happy
 ```
 
 or it could be a yaml file as follows (recomended if your trainer supports it and you use folders to organize images):
@@ -97,6 +88,7 @@ or it could be a yaml file as follows (recomended if your trainer supports it an
 main prompt: a woman in a coat and scarf posing in the park
 tags
   - tag: an outdoor photo
+  - tag: black skirt
   - tag: happy
 ```
 
@@ -139,10 +131,6 @@ optional arguments:
                         A text file with list of emotions/facial expressions for tags. (default: 'data/emotions.txt')
 ```
 
-The simplest usage would be to run the following command:
-```
-python caption.py --replace "jane doe"
-```
 This will scan all files in the ```output``` folder and all subfolders (i know its weird to default to output here, but its meant to be used after the crop script and that's where that puts its output by default). For each image a txt file with the same name will be created with the BLIP2 caption and CLIP tags as described above.
 
 NOTE: the find and replace functionality will likely require some tuning on your part as the BLIP captions sometimes feature new adjectives (expecially nationalities and such). If that happens you just need to add new strings to appropriate text file (ex: 'data\female.txt') for the terms its missing. For example if you got a caption with 'a young Polish woman in a park' it won't currently replace 'a young Polish woman' because its not in the female.txt. Just add it as a new line and rerun the script and it will replace it. Its impossible to account for everything here so it has to be left for the end user to fine-tune the txt files based on their dataset.
