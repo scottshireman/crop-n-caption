@@ -478,14 +478,16 @@ def process_folder(folder_path, person_processor, person_model, face_detector, d
 
     relative_path = os.path.relpath(folder_path, args.img_dir)
     output_path = os.path.join(args.out_dir, relative_path)
-    done_path = os.path.join(args.img_done, relative_path)
     small_path = os.path.join(args.out_dir, "small", relative_path)
 
+    if args.img_done is not None:
+        done_path = os.path.join(args.img_done, relative_path)
+        if not os.path.exists(done_path):
+            os.mkdir(done_path)
+        
     if not os.path.exists(output_path):
         os.mkdir(output_path)
 
-    if args.img_done is not None and not os.path.exists(done_path):
-        os.mkdir(done_path)
 
     if args.training_size > 0 and not os.path.exists(small_path):
         os.mkdir(small_path)

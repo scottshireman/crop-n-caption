@@ -169,20 +169,23 @@ def get_image_map(image_directory, check_path):
 def generate_embeddings(all_image_ids, images_to_paths, model, processor, device, batch_size):
 
     all_embeddings = []
-    progress_bar = tqdm(total=len(all_image_ids), desc="Generating new CLIP embeddings", position=1, leave=False)
+    
+    with tqdm(total=len(all_image_ids), position=1, leave=False) as progress_bar:
+        for i in range(0, len(all_image_ids), batch_size):
 
-    for i in range(0, len(all_image_ids), batch_size):
-        batch_image_ids, batch_images = process_image_batch(all_image_ids, i, batch_size, images_to_paths)
-                  
-        inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
+            progress_bar.set_description("Loading images")
+            batch_image_ids, batch_images = process_image_batch(all_image_ids, i, batch_size, images_to_paths)
 
-        with torch.no_grad():
-            outputs = model.get_image_features(**inputs)
+            progress_bar.set_description("Processing images")
+            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
 
-        all_embeddings.extend(outputs.cpu().numpy())
-        progress_bar.update(len(batch_image_ids))
+            progress_bar.set_description("Generating CLIP embeddings")
+            with torch.no_grad():
+                outputs = model.get_image_features(**inputs)
 
-    progress_bar.close()
+            all_embeddings.extend(outputs.cpu().numpy())
+            progress_bar.update(len(batch_image_ids))
+
     
     return all_embeddings
 
@@ -303,7 +306,7 @@ def process_folder(folder_path, training_path, validation_path, model, processor
     
     batch_size = args.batch_size
 
-    # Generate new embeddingsand image map if forced or if they don't exist on disk. Otherwise just load the existing ones.
+    # Generate new embeddings and image map if forced or if they don't exist on disk. Otherwise just load the existing ones.
     if args.force_regen_embeddings or not os.path.exists(embeddings_file) or not os.path.exists(image_map_file):
         image_map, all_embeddings = generate_embeddings_and_map(folder_path, image_map_file, embeddings_file, model, processor, device, batch_size)
 
